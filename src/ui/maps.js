@@ -236,6 +236,8 @@ function blobPath(cx, cy, rx, ry, seed, wob = .09) {
   for (let i = 0; i < n; i++) { const p = pts[i], q = pts[(i + 1) % n]; d += ` Q${r1(p[0])},${r1(p[1])} ${r1((p[0] + q[0]) / 2)},${r1((p[1] + q[1]) / 2)}`; }
   return d + ' Z';
 }
+// Pond geometry for the reserve map (the water surface). story.js draws the case-2 story on exactly these.
+export const RESERVE_PONDS = { dam: { cx: 275, cy: 195, rx: 150, ry: 100 }, fern: { cx: 470, cy: 470, rx: 145, ry: 88 }, salt: { cx: 780, cy: 215, rx: 132, ry: 82 } };
 function reserve(ink) {
   const p = 'r';
   let s = defs(p) + landBase(p);
@@ -260,20 +262,21 @@ function reserve(ink) {
   const tide = 'M860,236 C920,244 950,290 1010,296';
   s += `<path d="${tide}" fill="none" ${stroke(ink, 26)}/><path d="${tide}" fill="none" stroke="#8FD7DA" stroke-width="18" stroke-linecap="round"/><path d="${tide}" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="10 16" opacity=".6"/>`;
   // salt pool: mud rim + salty water
-  s += `<path d="${blobPath(780, 220, 112, 74, 3, .05)}" fill="${C.mud}" ${stroke(ink, 3.5)}/>`;
-  s += `<path d="${blobPath(780, 220, 94, 58, 5, .05)}" fill="#8FD7DA" ${stroke(ink, 3.5)}/>`;
-  s += `<path d="${blobPath(780, 220, 76, 42, 9, .05)}" fill="#6EC4CE" opacity=".85"/>`;
-  s += ripples([[724, 214, 44], [790, 244, 40], [760, 190, 36]], 0);
+  const P = RESERVE_PONDS;
+  s += `<path d="${blobPath(P.salt.cx, P.salt.cy, P.salt.rx + 20, P.salt.ry + 16, 3, .05)}" fill="${C.mud}" ${stroke(ink, 3.5)}/>`;
+  s += `<path d="${blobPath(P.salt.cx, P.salt.cy, P.salt.rx, P.salt.ry, 5, .05)}" fill="#8FD7DA" ${stroke(ink, 3.5)}/>`;
+  s += `<path d="${blobPath(P.salt.cx, P.salt.cy, P.salt.rx - 24, P.salt.ry - 22, 9, .05)}" fill="#6EC4CE" opacity=".85"/>`;
+  s += ripples([[724, 205, 54], [800, 245, 50], [760, 175, 46], [830, 190, 40]], 0);
   // farm dam
-  s += `<path d="${blobPath(300, 200, 112, 76, 21, .05)}" fill="#C9A877" ${stroke(ink, 3.5)}/>`;
-  s += `<path d="${blobPath(300, 200, 96, 62, 4, .05)}" fill="#7FC6DD" ${stroke(ink, 3.5)}/>`;
-  s += `<path d="${blobPath(300, 200, 78, 46, 8, .05)}" fill="#5DADCF" opacity=".85"/>`;
-  s += ripples([[246, 194, 44], [318, 226, 40], [292, 170, 36]], 2);
+  s += `<path d="${blobPath(P.dam.cx, P.dam.cy, P.dam.rx + 20, P.dam.ry + 20, 21, .04)}" fill="#C9A877" ${stroke(ink, 3.5)}/>`;
+  s += `<path d="${blobPath(P.dam.cx, P.dam.cy, P.dam.rx, P.dam.ry, 4, .04)}" fill="#7FC6DD" ${stroke(ink, 3.5)}/>`;
+  s += `<path d="${blobPath(P.dam.cx, P.dam.cy, P.dam.rx - 28, P.dam.ry - 26, 8, .04)}" fill="#5DADCF" opacity=".85"/>`;
+  s += ripples([[210, 185, 54], [330, 235, 50], [270, 140, 46], [340, 160, 40]], 2);
   // fern pond (dark, shaded)
-  s += `<path d="${blobPath(470, 470, 100, 62, 14, .05)}" fill="#6E9F62" ${stroke(ink, 3.5)}/>`;
-  s += `<path d="${blobPath(470, 470, 86, 50, 2, .05)}" fill="#3D8EA0" ${stroke(ink, 3.5)}/>`;
-  s += `<path d="${blobPath(470, 470, 68, 36, 6, .05)}" fill="#2F7A8C" opacity=".9"/>`;
-  s += ripples([[430, 466, 36], [480, 488, 34], [462, 450, 30]], 1);
+  s += `<path d="${blobPath(P.fern.cx, P.fern.cy, P.fern.rx + 20, P.fern.ry + 18, 14, .04)}" fill="#6E9F62" ${stroke(ink, 3.5)}/>`;
+  s += `<path d="${blobPath(P.fern.cx, P.fern.cy, P.fern.rx, P.fern.ry, 2, .04)}" fill="#3D8EA0" ${stroke(ink, 3.5)}/>`;
+  s += `<path d="${blobPath(P.fern.cx, P.fern.cy, P.fern.rx - 28, P.fern.ry - 24, 6, .04)}" fill="#2F7A8C" opacity=".9"/>`;
+  s += ripples([[420, 462, 46], [500, 492, 44], [466, 440, 40]], 1);
 
   // boardwalk across the saltmarsh
   const walk = 'M650,336 C700,334 760,320 830,316 C890,312 940,322 1010,330';
@@ -283,10 +286,7 @@ function reserve(ink) {
   s += `<g><rect x="58" y="56" width="84" height="54" rx="5" fill="#2B3A2A" opacity=".16" transform="translate(4 5)"/><rect x="58" y="56" width="84" height="54" rx="5" fill="#D9694F" ${stroke(ink, 3.2)}/><rect x="60" y="83" width="80" height="25" fill="#2B2B2B" opacity=".13"/><line x1="60" y1="83" x2="140" y2="83" ${stroke(ink, 2.6)}/></g>`;
   s += `<circle cx="168" cy="82" r="14" fill="#CFD6DA" ${stroke(ink, 3)}/><circle cx="168" cy="82" r="6" fill="#fff" opacity=".6"/>`;
   // cattle
-  s += cow(110, 262, -14, 1, '#2E3B40') + cow(394, 90, 160, 1) + cow(150, 150, 190, .95) + cow(414, 266, 18, .95);
-  // erosion gully + trough hints
-  s += `<path d="M196,150 C214,160 226,170 236,176" fill="none" stroke="#A97F4F" stroke-width="6" stroke-linecap="round" opacity=".6" stroke-dasharray="2 10"/>`;
-
+  s += cow(100, 250, -14, 1, '#2E3B40') + cow(394, 90, 160, 1) + cow(62, 160, 190, .95) + cow(150, 312, 18, .95);
   // trees: paddock edge and gully
   for (const [x, y, r] of [[500, 60, 20], [532, 120, 17], [504, 214, 19], [560, 270, 18], [36, 370, 16], [90, 372, 19], [150, 380, 16], [230, 376, 18], [296, 372, 16], [296, 440, 20], [270, 520, 19], [304, 596, 18], [380, 600, 18], [500, 604, 20], [590, 566, 19], [610, 480, 20], [596, 396, 18], [380, 396, 17], [540, 396, 16], [560, 610, 16]]) s += tree(x, y, r, ink, '#5F9F52');
   for (const [x, y, sc] of [[372, 440, 1], [566, 452, 1.05], [378, 510, 1], [556, 506, 1], [470, 568, 1.1], [420, 410, .95], [524, 414, 1], [336, 480, .9], [606, 536, .9], [430, 556, .9]]) s += fern(x, y, sc, ink);

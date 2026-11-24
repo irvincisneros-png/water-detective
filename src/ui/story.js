@@ -1,6 +1,7 @@
 // The map tells each case's story: the problem is visible from Day 1 and changes day by day.
 // Drawn above the water, below the HTML pins. Pure string builder (viewBox 0 0 1000 640).
 import { lookAt } from '../logic/readings.js';
+import { RESERVE_PONDS } from './maps.js';
 
 const INK = '#2E3B40';
 const pick = (arr, day) => arr[Math.min(Math.max(day, 1), arr.length) - 1];
@@ -45,28 +46,40 @@ function case1(state, c) {
   return s;
 }
 
+const tad = (x, y, rot, sc = 1.5) => `<g transform="translate(${r1(x)} ${r1(y)}) rotate(${rot}) scale(${sc})"><ellipse rx="5" ry="3.6" fill="#1F2A2E"/><path d="M-4,0 q-8,-4 -14,0" fill="none" stroke="#1F2A2E" stroke-width="2.4" stroke-linecap="round"/><circle cx="2.4" cy="-1" r=".9" fill="#fff"/></g>`;
+const tads = (p, n, seed) => { const r = rng(seed); let s = ''; for (let i = 0; i < n; i++) { const a = r() * 6.283, d = Math.sqrt(r()) * .72; s += tad(p.cx + Math.cos(a) * p.rx * d, p.cy + Math.sin(a) * p.ry * d, Math.round(r() * 360)); } return s; };
+const pill = (x, y, text, bg, fg, w = 150) => `<g transform="translate(${x} ${y})"><rect x="${-w / 2}" y="-15" width="${w}" height="30" rx="15" fill="${bg}" stroke="${INK}" stroke-width="3"/><text y="6" text-anchor="middle" font-size="17" font-weight="800" fill="${fg}">${text}</text></g>`;
+const crab = (x, y) => `<g transform="translate(${x} ${y}) scale(1.5)"><ellipse rx="8" ry="5.4" fill="#E8775A" stroke="${INK}" stroke-width="2"/><path d="M-9,-3 l-6,-5 M9,-3 l6,-5 M-8,3 l-6,5 M8,3 l6,5" stroke="${INK}" stroke-width="2" stroke-linecap="round"/><circle cx="-3" cy="-6" r="1.4" fill="${INK}"/><circle cx="3" cy="-6" r="1.4" fill="${INK}"/></g>`;
+const ell = (p, k, attrs) => `<ellipse cx="${p.cx}" cy="${p.cy}" rx="${r1(p.rx * k)}" ry="${r1(p.ry * k)}" ${attrs}/>`;
+
 function case2(state, c) {
-  const d = state.day, W = c.weather[d - 1];
+  const d = state.day, W = c.weather[d - 1], { dam, fern, salt } = RESERVE_PONDS;
   let s = '';
-  // the Farm Dam: green-brown on Day 1, muddy plume on Day 2, brown from Day 3, green film on Days 4-5
-  const dx = 300, dy = 200;
-  if (d === 1) s += `<ellipse cx="${dx}" cy="${dy}" rx="80" ry="47" fill="#9DB36B" opacity=".35"/>`;
-  if (d >= 2) s += `<ellipse cx="${dx}" cy="${dy}" rx="82" ry="49" fill="${d === 2 ? '#C29A66' : '#B6844E'}" opacity="${d === 2 ? .55 : .9}"/>`;
+  // ── Farm Dam: green-brown (Day 1) > plume (Day 2) > milky tea (Day 3) > brown + green film (Days 4-5)
+  if (d === 1) s += ell(dam, .98, 'fill="#8AA55A" opacity=".72"') + dots(dam.cx, dam.cy, dam.rx * .8, dam.ry * .75, 22, 14, '#A5BE63', 4);
   if (d === 2) {
-    s += `<path d="M150,118 C190,134 214,156 244,182 L296,198 L246,222 C214,204 184,176 138,150 Z" fill="#9A6B3A" opacity=".85" filter="url(#wst-blur2)"/>`;
-    s += `<path d="M165,135 C195,150 218,170 250,192" fill="none" stroke="#C99A62" stroke-width="7" stroke-linecap="round" class="wm-flow" opacity=".9"/><path d="M148,160 C182,170 212,190 246,206" fill="none" stroke="#C99A62" stroke-width="6" stroke-linecap="round" class="wm-flow" opacity=".8"/>`;
+    s += ell(dam, .98, 'fill="#B07A44" opacity=".8"');
+    s += `<path d="M30,60 C120,66 190,96 262,150 L292,172 L250,238 C190,200 110,150 30,150 Z" fill="#9C5F26" opacity="1" filter="url(#wst-blur2)"/>`;
+    s += `<path d="M60,88 C130,94 192,120 250,168" fill="none" stroke="#C99A62" stroke-width="9" stroke-linecap="round" class="wm-flow" opacity=".9"/><path d="M52,128 C120,132 184,160 244,198" fill="none" stroke="#C99A62" stroke-width="8" stroke-linecap="round" class="wm-flow" opacity=".85"/><path d="M80,66 C150,76 208,104 266,150" fill="none" stroke="#6B4421" stroke-width="6" stroke-linecap="round" class="wm-flow" opacity=".7"/>`;
   }
-  if (d >= 4) s += `<ellipse cx="${dx}" cy="${dy}" rx="80" ry="47" fill="none" stroke="#6FC23A" stroke-width="${d === 4 ? 9 : 15}" opacity=".8"/>` + dots(dx, dy, 74, 40, d === 4 ? 18 : 34, 5 + d, '#8EDB52', 3.2);
-  if (d >= 3 && d <= 3) s += dots(dx, dy, 70, 38, 10, 3, '#8F6A3B', 3);
-  if (state.revealed.B) s += tadpoles(dx, dy + 6, pick([8, 5, 2, 1, 0], d), 31);
-  if (state.revealed.C) s += tadpoles(470, 470, 10, 41) + sparkle(430, 450) + sparkle(512, 484);
-  if (state.revealed.A) s += `<g>${[[736, 228], [800, 244], [770, 200]].map(([x, y]) => `<g transform="translate(${x} ${y})"><ellipse rx="7" ry="5" fill="#E8775A" stroke="${INK}" stroke-width="2"/><path d="M-9,-4 l-5,-4 M9,-4 l5,-4 M-8,3 l-5,4 M8,3 l5,4" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/></g>`).join('')}</g>` + sparkle(740, 190) + sparkle(820, 224);
+  if (d >= 3) s += ell(dam, .985, `fill="${d === 3 ? '#C79F6A' : '#B58853'}" opacity=".97"`) + (d === 3 ? ell(dam, .72, 'fill="#EBD5AB" opacity=".42" filter="url(#wst-blur)"') + dots(dam.cx, dam.cy, dam.rx * .8, dam.ry * .75, 12, 3, '#9A7647', 3.5) : '');
+  if (d >= 4) {
+    const w = d === 4 ? 20 : 34;
+    s += `<ellipse cx="${dam.cx}" cy="${dam.cy}" rx="${dam.rx - w / 2 - 2}" ry="${dam.ry - w / 2 - 2}" fill="none" stroke="#62B82B" stroke-width="${w}" opacity=".92"/>`;
+    s += `<ellipse cx="${dam.cx}" cy="${dam.cy}" rx="${dam.rx - w - 6}" ry="${dam.ry - w - 6}" fill="none" stroke="#9BE04A" stroke-width="5" stroke-dasharray="3 9" stroke-linecap="round" opacity=".9"/>`;
+    s += dots(dam.cx, dam.cy, dam.rx * .93, dam.ry * .9, d === 4 ? 26 : 50, 9 + d, '#3D8A18', 4.5);
+  }
+  s += tads(dam, pick([10, 6, 2, 0, 0], d), 31);
+  if (d >= 4) s += pill(dam.cx - 55, dam.cy + 58, 'No tadpoles', '#FFF1D6', '#8C2B14', 176);
+  // ── Fern Pond: clear, healthy, lots of tadpoles
+  s += tads(fern, 16, 41) + sparkle(fern.cx - 90, fern.cy - 30) + sparkle(fern.cx + 80, fern.cy + 34) + sparkle(fern.cx + 10, fern.cy - 56);
+  s += pill(fern.cx - 72, fern.cy + 46, 'Lots of tadpoles', '#E4F6DC', '#1E5A2A', 200);
+  // ── Saltmarsh Pool: clear and salty, crabs
+  s += [[705, 236], [850, 244], [750, 152], [822, 160], [724, 272]].map(([x, y]) => crab(x, y)).join('') + sparkle(salt.cx - 70, salt.cy - 20) + sparkle(salt.cx + 60, salt.cy + 30) + sparkle(salt.cx + 10, salt.cy - 44);
+  if (state.revealed.B && d <= 3) s += dots(dam.cx, dam.cy, 40, 20, 0, 1, '#000');
   if (W?.icon === 'rain') {
-    // puddle rings on every water + heavy dark tint
-    s += `<rect width="1000" height="640" fill="#3E4F66" opacity=".12"/>`;
-    for (const [x, y, rx, ry] of [[dx, dy, 78, 44], [470, 470, 66, 34], [780, 220, 74, 40]]) {
-      for (let i = 0; i < 4; i++) s += `<ellipse cx="${x + (i - 1.5) * rx * .35}" cy="${y + (i % 2 ? 8 : -8)}" rx="${10 + i * 2}" ry="${5 + i}" fill="none" stroke="#fff" stroke-width="2.6" opacity=".7" class="wm-pulse"/>`;
-    }
+    s += `<rect width="1000" height="640" fill="#3E4F66" opacity=".16"/>`;
+    for (const p of [dam, fern, salt]) for (let i = 0; i < 7; i++) s += `<ellipse cx="${r1(p.cx + (i - 3) * p.rx * .27)}" cy="${r1(p.cy + (i % 2 ? 22 : -22))}" rx="${13 + (i % 3) * 3}" ry="${6 + (i % 3)}" fill="none" stroke="#fff" stroke-width="3" opacity=".8" class="wm-pulse"/>`;
   }
   return s;
 }

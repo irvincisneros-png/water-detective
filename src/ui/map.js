@@ -6,6 +6,12 @@ import { icon } from './icons.js';
 
 const DAY_TINT = ['rgba(255,214,150,.10)', 'rgba(200,215,240,.10)', 'rgba(255,232,190,.08)', 'rgba(190,225,240,.10)', 'rgba(255,225,170,.09)', 'rgba(215,225,240,.08)', 'rgba(255,215,170,.10)'];
 const NS = 'http://www.w3.org/2000/svg';
+// Pins sit on the bank beside the water so they never hide the story art; a short leader line points at the water.
+const PIN_POS = {
+  'green-water': { C: [336, 108], B: [590, 506], D: [100, 476] },
+  'which-pond': { A: [712, 336], B: [428, 296], C: [590, 556] },
+  'fish-kill': { C: [128, 190], B: [548, 132] },
+};
 
 export function createMap(c, { onSelect, ink } = {}) {
   const svg = document.createElementNS(NS, 'svg');
@@ -13,9 +19,11 @@ export function createMap(c, { onSelect, ink } = {}) {
   svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
   svg.setAttribute('aria-label', `Map of ${c.place}. Sites: ${c.sites.map(s => `${s.id} ${s.name}`).join(', ')}.`);
   const layer = cls => { const g = document.createElementNS(NS, 'g'); g.setAttribute('class', cls); svg.append(g); return g; };
-  const base = layer('lay-base'), art = layer('lay-art'), life = layer('lay-life'), wx = layer('lay-wx');
+  const base = layer('lay-base'), art = layer('lay-art'), life = layer('lay-life'), lead = layer('lay-lead'), wx = layer('lay-wx');
+  const pos = s => (PIN_POS[c.id]?.[s.id]) || [s.x, s.y];
   base.innerHTML = baseMap(c.map, ink || c.accent.ink);
   life.innerHTML = lifeLayer(c.map);
+  lead.innerHTML = c.sites.map(s => { const [px, py] = pos(s); if (px === s.x && py === s.y) return ''; return `<g pointer-events="none"><path d="M${px},${py} L${s.x},${s.y}" stroke="#fff" stroke-width="9" stroke-linecap="round" opacity=".85"/><path d="M${px},${py} L${s.x},${s.y}" stroke="${ink || c.accent.ink}" stroke-width="4" stroke-linecap="round" stroke-dasharray="2 9"/><circle cx="${s.x}" cy="${s.y}" r="8" fill="#fff" stroke="${ink || c.accent.ink}" stroke-width="4"/></g>`; }).join('');
 
   const tint = h('div.map-tint', { 'aria-hidden': 'true' });
   const wipe = h('div.map-wipe', { 'aria-hidden': 'true' }, h('span.wipe-day'));
@@ -23,7 +31,7 @@ export function createMap(c, { onSelect, ink } = {}) {
   const pinEls = {};
   for (const s of c.sites) {
     const el = h('button.pin', {
-      type: 'button', 'data-site': s.id, style: { left: `${s.x / 10}%`, top: `${s.y / 6.4}%` },
+      type: 'button', 'data-site': s.id, style: { left: `${pos(s)[0] / 10}%`, top: `${pos(s)[1] / 6.4}%` },
       onclick: () => onSelect?.(s.id),
       onkeydown: e => arrow(e, s),
     },
@@ -40,7 +48,7 @@ export function createMap(c, { onSelect, ink } = {}) {
     let best = null, bs = Infinity;
     for (const s of c.sites) {
       if (s === from) continue;
-      const dx = s.x - from.x, dy = s.y - from.y, along = dx * d[0] + dy * d[1];
+      const dx = pos(s)[0] - pos(from)[0], dy = pos(s)[1] - pos(from)[1], along = dx * d[0] + dy * d[1];
       if (along <= 0) continue;
       const score = (dx * dx + dy * dy) * 1 + Math.abs(dx * d[1] + dy * d[0]) * 3;
       if (score < bs) { bs = score; best = s; }

@@ -54,4 +54,13 @@ export const sfx = {
   star(i = 0) { tone({ f0: 784 * Math.pow(1.26, i), dur: 0.5, vol: 0.18, at: 0 }); tone({ f0: 1568 * Math.pow(1.26, i), dur: 0.4, vol: 0.06 }); },
   right() { tone({ f0: 660, dur: 0.1, vol: 0.18 }); tone({ f0: 990, dur: 0.18, vol: 0.18, at: 0.09 }); },
   wrong() { tone({ f0: 220, f1: 150, dur: 0.28, type: 'sawtooth', vol: 0.14 }); },
+  // Water Detective additions
+  tap() { tone({ f0: 520, f1: 420, dur: 0.06, type: 'triangle', vol: 0.09 }); },
+  pop() { tone({ f0: 300, f1: 900, dur: 0.12, type: 'sine', vol: 0.2 }); noise({ dur: 0.04, vol: 0.06, freq: 2500 }); },
+  pour() { noise({ dur: 0.22, vol: 0.12, freq: 1800 }); tone({ f0: 500, f1: 700, dur: 0.15, type: 'sine', vol: 0.03 }); },
+  bubble() { const f = 380 + Math.random() * 300; tone({ f0: f, f1: f * 1.8, dur: 0.09, type: 'sine', vol: 0.12 }); tone({ f0: f * 1.3, f1: f * 2.3, dur: 0.08, type: 'sine', vol: 0.07, at: 0.07 }); },
+  beep() { tone({ f0: 1040, dur: 0.11, type: 'square', vol: 0.07 }); tone({ f0: 1040, dur: 0.16, type: 'square', vol: 0.07, at: 0.15 }); },
+  labSend() { tone({ f0: 420, f1: 840, dur: 0.18, type: 'triangle', vol: 0.15 }); noise({ dur: 0.2, vol: 0.07, freq: 1200, at: 0.12 }); tone({ f0: 1250, dur: 0.25, type: 'sine', vol: 0.1, at: 0.3 }); },
+  dayChime() { [523, 659, 784].forEach((f, i) => tone({ f0: f, dur: 0.55, type: 'sine', vol: 0.15, at: i * 0.13 })); },
+  stamp() { tone({ f0: 110, f1: 45, dur: 0.22, type: 'sine', vol: 0.5 }); noise({ dur: 0.09, vol: 0.22, freq: 700 }); },
 };

@@ -9,6 +9,8 @@
 //   after the case's last day.
 // - Evidence and rule-out rules match notebook entries by site + param (+ optional minDay/maxDay).
 //   param is a tool id, or 'n' / 'p' for the two nutrient results, or 'look'.
+// - A `why` may contain {value}: replace it with the student's own reading and unit (e.g. '15 cm').
+// - Wrap-up options are listed with the correct one first; the UI must SHUFFLE their display order (seeded, stable).
 // - Map coordinates are in a 1000 x 640 viewBox.
 
 export const TOOLS = {
@@ -34,6 +36,7 @@ export const GUIDE = {
   estuary: { label: 'Estuary or salty water', ph: [7.0, 8.5], turb: [0.5, 10], n: 300, p: 30, doLow: 4 },
   fresh:   { label: 'Fresh water (lowland river)', ph: [6.5, 8.5], turb: null, n: 350, p: 25, doLow: 4 },
   note: 'Temperature and salinity have no single guide: it depends on the animals that live there.',
+  bodNote: 'BOD has no guide on this card. Compare sites: a higher BOD means microbes use up oxygen faster.',
 };
 
 export const CASES = [
@@ -43,7 +46,7 @@ export const CASES = [
     module: 'M1', moduleName: 'Aquatic Environments', dotPoints: ['1.1.1', '1.2.3'],
     accent: { ink: '#1F4E52', bg: '#CDEBE6', pop: '#F2A07F', pop2: '#E8775A' },
     place: 'Sandpiper Lagoon', map: 'lagoon-open',
-    budget: 8, days: 3,
+    budget: 6, days: 3,
     tools: ['look', 'temp', 'ph', 'sal', 'do', 'turb', 'nutrients'],
     weather: [
       { icon: 'sun-cloud', text: 'Warm and still. Heavy rain two days ago.' },
@@ -122,8 +125,8 @@ export const CASES = [
     frame: {
       text: 'Rain washed {0} from lawns down the north drain. The extra nutrients fed an algae {1}. When the algae died and rotted, the oxygen in the water {2}, so fish died.',
       blanks: [
-        { options: ['fertiliser', 'salt', 'sand'], correct: 0, hint: 'What do people put on lawns to make grass grow?' },
-        { options: ['bloom', 'reef', 'net'], correct: 0, hint: 'A sudden burst of algae growth has a flower word.' },
+        { options: ['fertiliser', 'soil', 'oil'], correct: 0, hint: 'What do people put on lawns to make grass grow?' },
+        { options: ['bloom', 'die-off', 'shortage'], correct: 0, hint: 'The water turned green: the algae grew fast. A sudden burst of algae has a flower word.' },
         { options: ['dropped', 'rose', 'stayed the same'], correct: 0, hint: 'Check the oxygen reading at the north drain.' },
       ],
     },
@@ -140,7 +143,7 @@ export const CASES = [
     module: 'M5', moduleName: 'Aquatic Ecology', dotPoints: ['5.1.7', '5.3.2'],
     accent: { ink: '#3A2F66', bg: '#E6E0F3', pop: '#E7A6CB', pop2: '#D070AA' },
     place: 'Banksia Reserve', map: 'reserve',
-    budget: 10, days: 5,
+    budget: 8, days: 5,
     tools: ['look', 'temp', 'phStrip', 'sal', 'do', 'clarity', 'nutrients'],
     weather: [
       { icon: 'sun', text: 'Sunny and mild.' },
@@ -203,7 +206,7 @@ export const CASES = [
         wrongWhy: 'A saltmarsh pool is filled by the tide, so it is meant to be salty. Which column of the guide card fits salty water?',
         ruleOut: [
           { site: 'A', param: 'sal', why: 'The pool is salty because the tide fills it. Salty is normal here: use the estuary guide.' },
-          { site: 'A', param: 'do',  why: 'The pool has plenty of oxygen (over 7 mg/L), so its animals can breathe.' },
+          { site: 'A', param: 'do',  why: 'The pool has {value} of oxygen: plenty for its animals to breathe.' },
         ] },
       { id: 'runoff', icon: 'rain', title: 'Rain washed the paddock into the Farm Dam',
         line: 'Runoff brought soil and cattle dung into the dam.', correct: true },
@@ -211,8 +214,8 @@ export const CASES = [
         line: 'The shady pond is too cold for the animals.',
         wrongWhy: 'Cool water is not always bad. Cool water holds more oxygen. Check how the Fern Pond animals are doing.',
         ruleOut: [
-          { site: 'C', param: 'do',   why: 'Fern Pond has lots of oxygen (about 7 mg/L), and its frogs and tadpoles are doing well.' },
-          { site: 'C', param: 'temp', why: 'Fern Pond stays about 15 to 16 °C every day. Its frogs and tadpoles are doing well at that temperature.' },
+          { site: 'C', param: 'do',   why: 'Fern Pond has {value} of oxygen: plenty. Its frogs and tadpoles are doing well.' },
+          { site: 'C', param: 'temp', why: 'Fern Pond is {value}: cool, and its frogs and tadpoles are doing well at that temperature.' },
         ] },
       { id: 'always-bad', icon: 'calendar', title: 'The Farm Dam was always bad',
         line: 'The dam water was unhealthy all along.',
@@ -226,10 +229,10 @@ export const CASES = [
     ],
     evidence: {
       valid: [
-        { site: 'B', param: 'clarity', minDay: 2, why: 'After the rain the dam\'s clarity fell from 80 cm to as low as 15 cm: soil washed in.' },
-        { site: 'B', param: 'n',       minDay: 2, why: 'After the rain the dam\'s nitrogen is over the fresh-water guide (350). Dung and soil carry nutrients.' },
-        { site: 'B', param: 'p',       minDay: 2, why: 'After the rain the dam\'s phosphorus is over the fresh-water guide (25).' },
-        { site: 'B', param: 'do',      minDay: 4, why: 'By Day 4 the dam\'s oxygen is under 4 mg/L: too low for many animals.' },
+        { site: 'B', param: 'clarity', minDay: 2, why: 'After the rain the Farm Dam\'s clarity is only {value}. Soil washed in and made it cloudy.' },
+        { site: 'B', param: 'n',       minDay: 2, why: 'After the rain the Farm Dam\'s nitrogen is {value}, over the fresh-water guide (350). Dung and soil carry nutrients.' },
+        { site: 'B', param: 'p',       minDay: 2, why: 'After the rain the Farm Dam\'s phosphorus is {value}, over the fresh-water guide (25). Dung and soil carry nutrients.' },
+        { site: 'B', param: 'do',      minDay: 4, why: 'The Farm Dam\'s oxygen has fallen to {value}, under 4 mg/L: too low for many animals.' },
       ],
       notes: {
         'B.clarity@1': 'That is a Day 1 reading, from before the rain. It shows the dam was fine then.',
@@ -255,9 +258,9 @@ export const CASES = [
       text: 'The {0} got sick after the {1}. Runoff made the water {2} and added {3}. One test on Day 1 would have {4} the problem.',
       blanks: [
         { options: ['Farm Dam', 'Saltmarsh Pool', 'Fern Pond'], correct: 0, hint: 'Which water changed after the rain?' },
-        { options: ['rain', 'sunshine', 'wind'], correct: 0, hint: 'What happened on Day 2?' },
-        { options: ['cloudy', 'salty', 'cold'], correct: 0, hint: 'What did the clarity tube show?' },
-        { options: ['nutrients', 'salt', 'oxygen'], correct: 0, hint: 'Dung and soil carry nitrogen and phosphorus.' },
+        { options: ['rain', 'sunshine', 'cold nights'], correct: 0, hint: 'What happened on Day 2?' },
+        { options: ['cloudy', 'salty', 'acidic'], correct: 0, hint: 'What did the clarity tube show?' },
+        { options: ['nutrients', 'salt', 'pesticide'], correct: 0, hint: 'Dung and soil carry nitrogen and phosphorus.' },
         { options: ['missed', 'found'], correct: 0, hint: 'Was the dam healthy on Day 1?' },
       ],
     },
@@ -274,7 +277,7 @@ export const CASES = [
     module: 'M6', moduleName: 'Local Area Study', dotPoints: ['6.1.6', '6.1.7'],
     accent: { ink: '#37474F', bg: '#EFE7D7', pop: '#9DBBD9', pop2: '#4F7CAC' },
     place: 'Sandpiper Lagoon', map: 'lagoon-closed',
-    budget: 9, days: 7,
+    budget: 7, days: 7,
     tools: ['look', 'temp', 'ph', 'sal', 'do', 'turb', 'nutrients', 'bod', 'pest'],
     weather: [
       { icon: 'sun-cloud', text: 'Warm and still. Heavy rain three days ago.' },
@@ -289,7 +292,7 @@ export const CASES = [
       from: 'Ranger Sam',
       lines: [
         'Dead fish are floating in Sandpiper Lagoon. Sand has closed the entrance, so the sea cannot flush the water.',
-        'Find out what is killing the fish. Some lab tests take five days, so plan ahead.',
+        'Find out what is killing the fish. Some lab tests take five days, so start them by Day 2.',
       ],
     },
     mapFeatures: ['sea', 'entrance-closed', 'stormwater-outlet', 'creek', 'roads', 'housing', 'reeds', 'mangroves'],
@@ -354,9 +357,9 @@ export const CASES = [
     ],
     evidence: {
       valid: [
-        { site: 'C', param: 'bod',  why: 'The creek inflow has the highest BOD (2.5 mg/L). Microbes there use up oxygen fastest.' },
+        { site: 'C', param: 'bod',  why: 'The creek inflow has the highest BOD of the three sites (2.5 mg/L). Microbes there use up oxygen fastest.' },
         { site: 'B', param: 'bod',  why: 'The middle\'s BOD (1.8 mg/L) is higher than the entrance (1.0). Microbes are using up oxygen there too.' },
-        { site: 'C', param: 'do',   why: 'The creek inflow has the least oxygen of all the sites. On hot days it fell to about 3 mg/L, under 4: too low for fish.' },
+        { site: 'C', param: 'do',   why: 'The creek inflow\'s oxygen ({value}) is the lowest of the three sites. Low oxygen is what kills fish.' },
         { site: 'C', param: 'turb', why: 'The creek inflow is 35 NTU, far over the guide (10). Stormwater carried in mud and rotting waste.' },
         { site: 'C', param: 'sal',  why: 'The creek inflow is only 4 ppt salt: lots of fresh stormwater is flowing in there.' },
       ],
@@ -379,7 +382,7 @@ export const CASES = [
       text: 'Stormwater carried waste into the lagoon at the {0}. Microbes broke it down and used up the {1}. On the hot days, oxygen fell further because warm water holds {2} oxygen.',
       blanks: [
         { options: ['creek inflow', 'entrance', 'middle'], correct: 0, hint: 'Where is the stormwater outlet?' },
-        { options: ['oxygen', 'salt', 'light'], correct: 0, hint: 'What does BOD measure?' },
+        { options: ['oxygen', 'nutrients', 'salt'], correct: 0, hint: 'What does BOD measure?' },
         { options: ['less', 'more'], correct: 0, hint: 'Compare the oxygen on Day 3 (hot) with Day 4 (cool).' },
       ],
     },

@@ -36,20 +36,28 @@ function shell(ctx, { svg, controls, caption, skippable = true, wide = false }) 
   const cap = h('p.bench-cap', { 'aria-live': 'polite' }, caption || '');
   const hint = skippable ? h('p.bench-hint', 'Click anywhere to skip the animation') : null;
   const body = h('div.bench', h('div.bench-top', h('span.bench-site', h('span', { html: icon('pin', 18) }), `${ctx.siteId} · ${ctx.siteName}`), h('span.bench-day', `Day ${ctx.day}`)), stage, cap, controls || null, hint);
-  const dlg = openDialog({ title: ctx.tool.name, body, cls: `bench-dlg${wide ? ' wide' : ''}`, onClose: () => { state.closed = true; closeResolve(state.committed); } });
+  const dlg = openDialog({ title: ctx.tool.name, body, cls: `bench-dlg${wide ? ' wide' : ''}`, onClose: () => { state.closed = true; state.pendingRes?.(); closeResolve(state.committed); } });
   if (skippable) body.addEventListener('pointerdown', e => { if (!e.target.closest('button')) state.skipped = true; });
   const wait = ms => (state.skipped || state.closed || ctx.reduced ? Promise.resolve() : sleep(ms));
-  const finish = async (readoutEl, savedText) => {
-    if (state.closed) return;
-    const committed = ctx.commit();
-    if (!committed) { cap.textContent = 'Something went wrong. Try again.'; return; }
-    state.committed = true;
-    cap.textContent = savedText || 'Saved in your notebook.';
-    ctx.sfx?.right?.();
-    if (!ctx.reduced && readoutEl) await flyToNotebook(readoutEl, ctx.flyText || '');
-    await (ctx.reduced ? sleep(700) : wait(300));
-    dlg.close();
-  };
+  // Reading is kept only when the student presses the button: tokens are spent then.
+  const finish = (readoutEl, savedText, label = 'Save to notebook') => new Promise(res => {
+    if (state.closed) return res();
+    state.pendingRes = res;
+    hint?.remove();
+    const btn = h('button.btn.primary.big#btn-save-reading', { type: 'button', 'data-autofocus': '', onclick: async () => {
+      if (state.committed) return;
+      btn.disabled = true;
+      if (!ctx.commit()) { cap.textContent = 'Something went wrong. Try again.'; btn.disabled = false; return; }
+      state.committed = true;
+      cap.textContent = savedText || 'Saved in your notebook.';
+      ctx.sfx?.right?.();
+      if (!ctx.reduced) await flyToNotebook(btn, ctx.flyText || '');
+      await (ctx.reduced ? sleep(500) : wait(150));
+      dlg.close(); res();
+    } }, h('span', { html: icon('check', 24) }), label);
+    body.append(h('div.bench-save', btn));
+    btn.focus();
+  });
   return { dlg, stage, cap, body, state, wait, finish, $: s => stage.querySelector(s), done };
 }
 
@@ -132,7 +140,7 @@ async function meterBench(ctx) {
   val.classList.add('settled');
   ctx.flyText = `${formatValue(kind, v)} ${info.unit}`.trim();
   await B.wait(200);
-  await B.finish(val.closest('svg'), `${info.label} ${formatValue(kind, v)} ${info.unit}`.trim() + ' saved in your notebook.');
+  await B.finish(val, `${info.label} ${formatValue(kind, v)} ${info.unit}`.trim() + ' saved in your notebook.');
   return B.done;
 }
 
@@ -148,20 +156,19 @@ function refractSvg() {
     <defs><clipPath id="ref-clip"><circle cx="200" cy="150" r="132"/></clipPath><radialGradient id="ref-vig" cx="50%" cy="50%" r="50%"><stop offset="70%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity=".35"/></radialGradient></defs>
     <circle cx="200" cy="150" r="144" fill="#3A4A44" stroke="#1F3B2D" stroke-width="5"/>
     <g clip-path="url(#ref-clip)"><rect x="60" y="10" width="280" height="280" fill="#fff"/>
-      <g id="ref-blue"><rect x="60" y="-40" width="280" height="330" fill="#6CB4E8"/><rect x="60" y="-40" width="280" height="330" fill="url(#ref-bg)" opacity="0"/></g>
-      <rect id="ref-line" x="60" y="248" width="280" height="6" fill="#2F78B8" opacity=".55"/>
-      ${ticks}<text x="270" y="40" class="ref-unit" text-anchor="middle">ppt</text>
+      <g id="ref-blue"><rect x="60" y="-60" width="280" height="310" fill="#6CB4E8"/><path d="M60,250H340" stroke="#2F78B8" stroke-width="3"/></g>
+      ${ticks}<text x="262" y="92" class="ref-unit" text-anchor="middle">ppt</text>
       <circle cx="200" cy="150" r="132" fill="url(#ref-vig)"/></g>
     <circle cx="200" cy="150" r="132" fill="none" stroke="#1F3B2D" stroke-width="5"/>
     <g id="ref-pointer"><path d="M60 250h22" stroke="#E8584A" stroke-width="4" stroke-linecap="round"/></g></svg>`;
 }
 async function refractBench(ctx) {
   const v = ctx.value;
-  const B = shell(ctx, { svg: refractSvg(), caption: 'Looking through the eyepiece…', controls: h('div.bench-readout', h('span.rd-label', 'Salinity'), h('strong#rd-val', '0'), h('span.rd-unit', 'ppt')) });
+  const B = shell(ctx, { svg: refractSvg(), caption: 'Looking through the eyepiece. Read the scale where blue meets white.', controls: h('div.bench-readout', h('span.rd-label', 'Salinity'), h('strong#rd-val', '0'), h('span.rd-unit', 'ppt')) });
   B.ctx = ctx;
-  const blue = B.$('#ref-blue'), line = B.$('#ref-line'), ptr = B.$('#ref-pointer'), out = B.body.querySelector('#rd-val');
+  const blue = B.$('#ref-blue'), ptr = B.$('#ref-pointer'), out = B.body.querySelector('#rd-val');
   const yAt = x => 250 - x * 5;
-  const set = x => { const dy = yAt(x) - 250; blue.setAttribute('transform', `translate(0 ${dy})`); line.setAttribute('transform', `translate(0 ${dy})`); ptr.setAttribute('transform', `translate(0 ${dy})`); out.textContent = Math.round(x); };
+  const set = x => { const dy = yAt(x) - 250; blue.setAttribute('transform', `translate(0 ${dy})`); ptr.setAttribute('transform', `translate(0 ${dy})`); out.textContent = Math.round(x); };
   set(0);
   await B.wait(150);
   ctx.sfx?.pour?.();
@@ -172,7 +179,7 @@ async function refractBench(ctx) {
   }
   set(v);
   ctx.sfx?.beep?.();
-  B.cap.textContent = `Where blue meets white, read ${v} ppt.`;
+  B.cap.textContent = `Blue meets white at ${v} ppt.`;
   ctx.flyText = `${v} ppt`;
   await B.wait(250);
   await B.finish(out, `Salinity ${v} ppt saved in your notebook.`);
@@ -190,7 +197,8 @@ async function stripBench(ctx) {
   const swatches = h('div.chart', { role: 'group', 'aria-label': 'pH colour chart. Tap the colour that matches your strip.' },
     Object.entries(STRIP_COLORS).sort((a, b) => a[0] - b[0]).map(([k, c]) => h('button.swatch', { type: 'button', 'data-swatch': k, 'aria-label': `pH ${Number(k).toFixed(1)}`, style: { '--sw': c }, onclick: () => pick(Number(k)) }, h('span.sw-chip'), h('span.sw-num', Number(k).toFixed(1)))));
   const mine = h('div.strip-mine', { hidden: true }, h('span.sm-label', 'Your strip'), h('span.sm-chip#mine'));
-  const controls = h('div.strip-ui', mine, swatches);
+  const assist = h('button.btn.ghost#btn-assist', { type: 'button', hidden: true, onclick: () => { swatches.querySelector(`[data-swatch="${target}"]`).classList.add('hint'); B.cap.textContent = 'The glowing swatch matches your strip. Tap it.'; ctx.sfx?.tap?.(); } }, 'Show me the match');
+  const controls = h('div.strip-ui', mine, swatches, assist);
   const B = shell(ctx, { svg, caption: 'Dipping the strip…', controls, wide: true });
   B.ctx = ctx;
   swatches.style.visibility = 'hidden';
@@ -208,7 +216,7 @@ async function stripBench(ctx) {
   strip.style.transform = 'translateY(-4px)';
   ctx.sfx?.bubble?.();
   mine.hidden = false; B.body.querySelector('#mine').style.background = col;
-  swatches.style.visibility = 'visible';
+  swatches.style.visibility = 'visible'; assist.hidden = false;
   B.cap.textContent = 'Tap the colour on the chart that matches your strip.';
   B.body.querySelector('.bench-hint')?.remove();
   swatches.querySelector('.swatch').focus();
@@ -223,7 +231,7 @@ async function stripBench(ctx) {
       return;
     }
     locked = true;
-    el.classList.add('right'); ctx.sfx?.beep?.();
+    el.classList.add('right'); assist.hidden = true; ctx.sfx?.beep?.();
     ctx.flyText = `pH ${target.toFixed(1)}`;
     B.finish(el, `pH ${target.toFixed(1)} saved in your notebook.`);
   }
@@ -318,15 +326,15 @@ async function labBench(ctx) {
   await B.wait(250);
   move(bottle, 'translate(17px,120px)', 420); await B.wait(440);
   bottle.style.opacity = '0';
-  B.cap.textContent = 'Parcel sealed and sent to the lab.';
   ctx.sfx?.labSend?.();
-  move(parcel, 'translateX(260px)', 520); parcel.style.opacity = '0'; await B.wait(540);
+  move(parcel, 'translateX(70px)', 420); await B.wait(440);
   ctx.flyText = 'Sent to lab';
   const due = ctx.day + t.delay;
   const pill = h('div.bench-readout.lab', h('span.rd-label', 'Result arrives'), h('strong', `Day ${due}`));
-  B.body.insertBefore(pill, B.body.querySelector('.bench-hint'));
+  B.cap.after(pill);
+  B.cap.textContent = `Parcel sealed. The result arrives on Day ${due}.`;
   await B.wait(150);
-  await B.finish(pill, `Sent to the lab. The result arrives on Day ${due}. Look in the Waiting tray.`);
+  await B.finish(pill, `Sent to the lab. The result arrives on Day ${due}. Look in the Waiting tray.`, 'Send to the lab');
   return B.done;
 }
 
@@ -353,9 +361,9 @@ async function bodBench(ctx) {
   B.cap.textContent = `Clear bottle: oxygen now ${doNow.toFixed(1)} mg/L. The foil bottle waits in the dark for 5 days.`;
   ctx.flyText = 'BOD started';
   const pill = h('div.bench-readout.lab', h('span.rd-label', 'BOD result arrives'), h('strong', `Day ${due}`));
-  B.body.insertBefore(pill, B.body.querySelector('.bench-hint'));
+  B.cap.after(pill);
   await B.wait(350);
-  await B.finish(pill, `Oxygen now ${doNow.toFixed(1)} mg/L. The BOD result arrives on Day ${due}. Look in the Waiting tray.`);
+  await B.finish(pill, `Oxygen now ${doNow.toFixed(1)} mg/L. The BOD result arrives on Day ${due}. Look in the Waiting tray.`, 'Start the BOD test');
   return B.done;
 }
 

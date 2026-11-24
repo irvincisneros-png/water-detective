@@ -1,6 +1,6 @@
 // The illustrated map: authored SVG art (maps.js) + big HTML site pins on top (so tap targets stay >= 48 px at any width).
-import { baseMap, siteArt, weatherLayer, lifeLayer } from './maps.js';
-import { lookAt } from '../logic/readings.js';
+import { baseMap, weatherLayer, lifeLayer } from './maps.js';
+import { storyLayer } from './story.js';
 import { h } from './dom.js';
 import { icon } from './icons.js';
 
@@ -52,7 +52,7 @@ export function createMap(c, { onSelect, ink } = {}) {
   const api = {
     el, pins: pinEls,
     update(state) {
-      art.innerHTML = c.sites.filter(s => state.revealed[s.id]).map(s => siteArt(lookAt(c, s.id, state.day).art, s.x, s.y, `u${s.id}`)).join('');
+      art.innerHTML = storyLayer(c, state);
       const wxi = c.weather[state.day - 1]?.icon || 'sun';
       wx.innerHTML = weatherLayer(wxi);
       tint.style.background = DAY_TINT[(state.day - 1) % DAY_TINT.length];
@@ -70,6 +70,13 @@ export function createMap(c, { onSelect, ink } = {}) {
       wipe.classList.remove('go'); void wipe.offsetWidth; wipe.classList.add('go');
       await new Promise(r => setTimeout(r, 900));
       wipe.classList.remove('go');
+    },
+    async timelapse(from, to, reducedMotion) {
+      if (reducedMotion) return;
+      wipe.classList.remove('go'); wipe.classList.add('hold');
+      for (let d = from + 1; d <= to; d++) { wipe.querySelector('.wipe-day').textContent = `Day ${d}`; await new Promise(r => setTimeout(r, 330)); }
+      await new Promise(r => setTimeout(r, 200));
+      wipe.classList.remove('hold');
     },
     pulse(siteId) { const p = pinEls[siteId]; p.classList.remove('flash'); void p.offsetWidth; p.classList.add('flash'); },
   };

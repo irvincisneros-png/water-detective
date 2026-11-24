@@ -52,6 +52,7 @@ export function sanitiseState(raw) {
   if (isObj(raw.revealed)) for (const k of Object.keys(raw.revealed)) if (siteIds.includes(k)) s.revealed[k] = true;
   s.nextId = isInt(raw.nextId) && raw.nextId > 0 ? raw.nextId : s.entries.length + s.pending.length + 1;
   for (const k of ['unseen', 'topUps', 'wrongCauses', 'tipsShown', 'tokensSpent']) s[k] = isInt(raw[k]) && raw[k] >= 0 ? raw[k] : 0;
+  s.wrongList = Array.isArray(raw.wrongList) ? [...new Set(raw.wrongList.filter(i => typeof i === 'string' && c.suspects.some(x => x.id === i && !x.correct)))] : [];
   s.tipsShown = Math.min(s.tipsShown, c.hints.length);
   s.unseen = Math.min(s.unseen, s.entries.length);
   if (raw.solved != null) {

@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createState, selectSite, look, runTest, canTest, nextDay, canNextDay, topUp, accuse, scoreStars, placeChip, finishWrap, sentence, nextTip, WRONG_COST } from '../src/logic/game.js';
 import { sensorValue, formatReading, caseById } from '../src/logic/readings.js';
-import { judgeEvidence, judgeRuleOut, ruleMatches } from '../src/logic/board.js';
+import { judgeEvidence, judgeRuleOut, ruleMatches, modelEvidence } from '../src/logic/board.js';
+import { labStatus, nextArrival, waitForResults } from '../src/logic/game.js';
+import { wrapOrders, suspectOrder, seededOrder } from '../src/logic/shuffle.js';
+import { CASES } from '../src/data/cases.js';
 import { find, advance, must } from './helpers.mjs';
 
 const fresh = id => { const s = createState(id); s.step = 'investigate'; return s; };
@@ -12,7 +15,7 @@ test('a test needs a site and spends the right tokens', () => {
   assert.equal(canTest(s, 'temp').ok, false);
   selectSite(s, 'B');
   const r = must(runTest(s, 'temp'));
-  assert.equal(s.tokens, 7); assert.equal(r.entries[0].value, 22.0);
+  assert.equal(s.tokens, 5); assert.equal(r.entries[0].value, 22.0);
   assert.equal(formatReading('temp', 22.0), '22.0 °C');
   assert.equal(canTest(s, 'temp').reason, 'Already done here today');
 });
@@ -20,14 +23,14 @@ test('a test needs a site and spends the right tokens', () => {
 test('look is free and makes one entry per site per day', () => {
   const s = fresh(1); selectSite(s, 'C');
   const a = look(s), b = look(s);
-  assert.equal(s.tokens, 8); assert.equal(s.entries.length, 1); assert.equal(b.existing, true);
+  assert.equal(s.tokens, 6); assert.equal(s.entries.length, 1); assert.equal(b.existing, true);
   assert.deepEqual(a.entry.art, ['bloom', 'deadfish']); assert.ok(s.revealed.C);
 });
 
 test('wrong cause costs 2 tokens and never goes below 0', () => {
   const s = fresh(1);
   const r = accuse(s, { cause: 'soil', evidence: [] });
-  assert.equal(r.correct, false); assert.equal(r.lost, WRONG_COST); assert.equal(s.tokens, 6); assert.match(r.why, /creek mouth/);
+  assert.equal(r.correct, false); assert.equal(r.lost, WRONG_COST); assert.equal(s.tokens, 4); assert.match(r.why, /creek mouth/);
   s.tokens = 1;
   const r2 = accuse(s, { cause: 'oil', evidence: [] });
   assert.equal(s.tokens, 0); assert.equal(r2.lost, 1);
@@ -89,7 +92,7 @@ test('BOD uses the dissolved oxygen of the day the bottles were filled', () => {
 });
 
 test('pesticide result after 5 days', () => {
-  const s = fresh(3); selectSite(s, 'C'); must(runTest(s, 'pest')); assert.equal(s.tokens, 6);
+  const s = fresh(3); selectSite(s, 'C'); must(runTest(s, 'pest')); assert.equal(s.tokens, 4);
   advance(s, 5); assert.equal(find(s, 'C', 'pest').value, 'Not found');
 });
 
@@ -137,13 +140,76 @@ test('case 1 needs a nutrient reading for star 2; case 3 needs a BOD reading', (
   assert.equal(r2.stars[1], false); assert.match(r2.evidence.mustWhy, /BOD/);
 });
 
-test('star 3 needs at most one wrong cause', () => {
+test('guessing: one wrong try still earns star 1; two or more lose it', () => {
   const run = wrongs => {
     const s = fresh(3); selectSite(s, 'C'); look(s);
-    for (let i = 0; i < wrongs; i++) accuse(s, { cause: ['oil', 'weed-spray'][i] });
-    return accuse(s, { cause: 'oxygen-used', evidence: [], ruleOut: { suspect: 'oil', entry: find(s, 'C', 'look').id } }).stars[2];
+    for (let i = 0; i < wrongs; i++) accuse(s, { cause: ['oil', 'weed-spray', 'too-salty'][i] });
+    return accuse(s, { cause: 'oxygen-used', evidence: [] });
   };
-  assert.equal(run(0), true); assert.equal(run(1), true); assert.equal(run(2), false);
+  assert.equal(run(0).stars[0], true); assert.equal(run(1).stars[0], true);
+  const r2 = run(2); assert.equal(r2.stars[0], false); assert.equal(r2.guessed, true);
+});
+
+test('the same wrong cause is never charged twice', () => {
+  const s = fresh(1);
+  const a = accuse(s, { cause: 'soil' }), b = accuse(s, { cause: 'soil' }), c = accuse(s, { cause: 'soil' });
+  assert.equal(a.lost, 2); assert.equal(b.repeat, true); assert.equal(b.lost, 0); assert.equal(c.lost, 0);
+  assert.equal(s.tokens, 4); assert.equal(s.wrongCauses, 1); assert.deepEqual(s.wrongList, ['soil']);
+});
+
+test('star 3 needs star 2, a valid rule-out, no top-up and no wrong tries', () => {
+  const build = ({ wrong = 0, topUp = false, evidence = 'good' } = {}) => {
+    const s = fresh(1); selectSite(s, 'C'); look(s); selectSite(s, 'B'); look(s);
+    must(runTest(s, 'nutrients', 'C')); must(runTest(s, 'do', 'C')); advance(s, 1);
+    if (topUp) topUp_(s);
+    for (let i = 0; i < wrong; i++) accuse(s, { cause: ['soil', 'oil'][i] });
+    const ev = evidence === 'good' ? [find(s, 'C', 'n').id, find(s, 'C', 'p').id] : [find(s, 'C', 'do').id, find(s, 'C', 'look').id];
+    return accuse(s, { cause: 'fertiliser', evidence: ev, ruleOut: { suspect: 'oil', entry: find(s, 'B', 'look').id } }).stars;
+  };
+  const topUp_ = s => topUp(s);
+  assert.deepEqual(build(), [true, true, true]);
+  assert.deepEqual(build({ wrong: 1 }), [true, true, false]);
+  assert.deepEqual(build({ topUp: true }), [true, true, false]);
+  assert.deepEqual(build({ evidence: 'weak' }), [true, false, false]);
+  assert.deepEqual(build({ wrong: 2 }), [false, true, false]);
+});
+
+test('why strings fill in the student\'s own reading', () => {
+  const s = fresh(2); selectSite(s, 'B'); advance(s, 1); must(runTest(s, 'clarity'));
+  const r = judgeEvidence(caseById(2), find(s, 'B', 'clarity'));
+  assert.equal(r.valid, true); assert.match(r.why, /only 30 cm/); assert.doesNotMatch(r.why, /\{value\}/);
+  assert.match(judgeRuleOut(caseById(2), 'too-cold', { site: 'C', param: 'temp', day: 1, value: 16 }).why, /16\.0 °C/);
+  const me = modelEvidence(caseById(2), s.entries);
+  assert.equal(me.length, 4); assert.ok(me.find(m => m.rule.param === 'clarity').entry); assert.equal(me.find(m => m.rule.param === 'n').entry, null);
+});
+
+test('long lab tests: Start by Day 2 in case 3, then too late', () => {
+  const s = fresh(3); selectSite(s, 'C');
+  assert.deepEqual(labStatus(s, 'bod'), { deadline: 2, status: 'early', delay: 5 });
+  assert.equal(labStatus(s, 'temp'), null); assert.equal(labStatus(s, 'nutrients'), null);
+  advance(s, 1); assert.equal(labStatus(s, 'bod').status, 'last'); assert.equal(canTest(s, 'bod').ok, true);
+  advance(s, 1); assert.equal(labStatus(s, 'bod').status, 'late');
+  assert.match(canTest(s, 'bod').reason, /Too late: a 5-day test must start by Day 2/);
+  assert.equal(labStatus(fresh(1), 'nutrients'), null);
+});
+
+test('wait for results jumps to the day the next result arrives', () => {
+  const s = fresh(3); selectSite(s, 'C'); must(runTest(s, 'bod'));
+  assert.equal(nextArrival(s), 6);
+  const r = waitForResults(s);
+  assert.equal(r.days, 5); assert.equal(s.day, 6); assert.equal(r.arrived.length, 1); assert.equal(r.arrived[0].param, 'bod');
+  assert.equal(waitForResults(s).ok, false);
+});
+
+test('seeded shuffles are stable, and the right answer is not first everywhere', () => {
+  for (const c of CASES) {
+    const a = wrapOrders(c), b = wrapOrders(c);
+    assert.deepEqual(a, b);
+    a.forEach((o, i) => assert.deepEqual([...o].sort(), c.frame.blanks[i].options.map((_, k) => k)));
+    assert.ok(a.some((o, i) => o[0] !== c.frame.blanks[i].correct), `${c.id}: not correct-first everywhere`);
+    const so = suspectOrder(c); assert.deepEqual(so, suspectOrder(c)); assert.notEqual(so[0], c.suspects.findIndex(x => x.correct)); assert.deepEqual([...so].sort(), [0, 1, 2, 3]);
+  }
+  assert.deepEqual(seededOrder(5, 'x'), seededOrder(5, 'x')); assert.notDeepEqual(seededOrder(8, 'x'), seededOrder(8, 'y'));
 });
 
 test('wrap-up chips: wrong wobbles with a hint, right fills; sentence completes', () => {

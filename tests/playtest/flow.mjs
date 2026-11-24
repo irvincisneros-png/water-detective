@@ -38,9 +38,17 @@ async function playCase({ num, vp, mode, reduced = false }) {
       if (kb) { await btn.focus(); await page.keyboard.down('Space'); await t.wait(Math.min(ms, 1200)); await page.keyboard.up('Space'); await t.wait(150); const finished = await page.locator('.bench-cap').innerText().then(x => /disappeared|100 cm/.test(x)).catch(() => true); if (!finished) { await page.keyboard.down('Space'); await t.wait(ms); await page.keyboard.up('Space'); } }
       else { const b = await btn.boundingBox(); await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.down(); await t.wait(ms); await page.mouse.up(); }
     } else if (!kb && !reduced) { await page.locator('.bench-stage').click({ position: { x: 20, y: 20 } }).catch(() => {}); }
+    await page.waitForSelector('#btn-save-reading', { timeout: 20000 });
+    if (!seenBench.has(tool)) { seenBench.add(tool); await t.shot(`bench-${tool}`); }
+    assert.equal(await page.locator('.bench-hint').count(), 0, 'skip hint removed once finished');
+    await act('#btn-save-reading');
     await benchGone();
   };
-  const nextDay = async () => { await act('#next-day'); await t.wait(reduced ? 150 : 1100); };
+  const seenBench = new Set();
+  const dismissResults = async () => {
+    if (await page.locator('#btn-results-ok').count()) { await t.shot('results-in'); await act('#btn-results-ok'); await page.waitForSelector('.results-dlg', { state: 'detached' }); }
+  };
+  const nextDay = async () => { await act('#next-day'); await t.wait(reduced ? 200 : 1300); await dismissResults(); };
   const tab = async name => { await act(`[data-tab="${name}"]`); };
 
   await t.wait(400);
@@ -56,7 +64,7 @@ async function playCase({ num, vp, mode, reduced = false }) {
   await act('#btn-kit-go');
   await page.waitForSelector('.mapbox');
   await t.wait(600);
-  if (num === 1) { assert.ok(await page.locator('#coach').count(), 'coach marks show in case 1'); await t.shot('coach'); }
+  if (num === 1) { assert.ok(await page.locator('#coach').count(), 'coach marks show in case 1'); await t.shot('coach'); await page.locator('.cskip').click(); assert.equal(await page.locator('#coach').count(), 0); }
   else assert.equal(await page.locator('#coach').count(), 0);
 
   const wx = c.weather;
@@ -95,7 +103,11 @@ async function playCase({ num, vp, mode, reduced = false }) {
     await site('C'); await act('#btn-look'); await testTool('do', c.readings.C.do[0]); await testTool('bod'); await t.shot('bod-sent');
     await site('B'); await act('#btn-look');
     await site('C');
-    for (let i = 0; i < 5; i++) await nextDay();
+    await nextDay(); assert.match(await page.locator('.tray-banner').innerText(), /Last day to start 5-day lab tests/); await t.shot('last-day-banner');
+    await act('#wait-results'); await t.wait(reduced ? 200 : 2200);
+    assert.match(await page.locator('[data-testid="bod-eq"]').innerText(), /4\.2[\s\S]*1\.7[\s\S]*2\.5/, 'BOD subtraction shown');
+    await t.shot('bod-results-card');
+    await dismissResults();
     await t.shot('day6');
     await tab('notebook'); await t.shot('notebook-bod');
     assert.ok(await t.ev(() => !!window.__wd.state.entries.find(e => e.param === 'bod')), 'BOD arrived');
@@ -108,16 +120,24 @@ async function playCase({ num, vp, mode, reduced = false }) {
   const ids = num === 1 ? [await idOf('C', 'n'), await idOf('C', 'p')] : num === 2 ? [await idOf('B', 'clarity', 2), await idOf('B', 'n', 2)] : [await idOf('C', 'bod'), await idOf('C', 'do')];
   const ruleSus = num === 1 ? 'oil' : num === 2 ? 'always-bad' : 'oil';
   const ruleEntry = num === 1 ? await idOf('B', 'look') : num === 2 ? await idOf('B', 'clarity', 1) : await idOf('C', 'look');
-  const pickCause = id => act(`[data-suspect="${id}"]`).catch(async () => page.locator(`[for="sus-${id}"]`).click());
-  await page.locator(`label[for="sus-${wrong}"]`).click();
-  for (const id of ids) await act(`.nb-row[data-id="${id}"]`);
-  await act('#check'); await page.waitForSelector('.result.bad');
-  assert.match(await page.locator('.result.bad').innerText(), /council paid for a check/);
-  await t.shot('board-wrong');
-  await act('#btn-try');
-  await page.locator(`label[for="sus-${right}"]`).click();
+  const pickCause = id => page.locator(`#sus-${id}`).check({ force: true });
+  const withWrong = !kb;   // mouse runs make one wrong try first (loses the Sharp detective star)
+  if (withWrong) {
+    await pickCause(wrong);
+    for (const id of ids) await act(`.step.ev .nb-row[data-id="${id}"]`);
+    await act('#check'); await page.waitForSelector('.wrong-dlg');
+    assert.match(await page.locator('.wrong-dlg').innerText(), /council paid for a check/);
+    await t.shot('board-wrong');
+    await act('#btn-try'); await page.waitForSelector('.wrong-dlg', { state: 'detached' });
+    assert.equal(await page.locator(`#sus-${wrong}`).isDisabled(), true, 'wrong cause is locked');
+    assert.equal(await page.locator('#check').getAttribute('aria-disabled'), 'true', 'check disabled until selection changes');
+    await t.shot('board-after-wrong');
+  } else {
+    for (const id of ids) await act(`.step.ev .nb-row[data-id="${id}"]`);
+  }
+  await pickCause(right);
   await act(`[data-ro="${ruleSus}"]`);
-  await page.selectOption('#ro-reading', ruleEntry);
+  await act(`.step.ro .nb-row[data-id="${ruleEntry}"]`);
   await t.shot('board-ready');
   await act('#check'); await page.waitForSelector('.result.good');
   await t.shot('board-right');
@@ -136,7 +156,7 @@ async function playCase({ num, vp, mode, reduced = false }) {
   await t.wait(reduced ? 200 : 2600);
   await t.shot('results');
   const stars = await t.ev(id => window.__wd.save.cases[id]?.stars, c.id);
-  assert.deepEqual(stars, [true, true, true], 'three stars');
+  assert.deepEqual(stars, kb ? [true, true, true] : [true, true, false], kb ? 'three stars' : 'one wrong try loses Sharp detective');
   await act('#btn-report'); await page.waitForSelector('.report-sheet');
   await t.shot('report');
   assert.match(await page.locator('.report-sheet').innerText(), /real water scientist/);

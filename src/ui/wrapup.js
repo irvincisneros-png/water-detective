@@ -7,11 +7,13 @@ import { notebookView } from './notebook.js';
 import * as G from '../logic/game.js';
 import * as save from '../state/save.js';
 import { CASES } from '../data/cases.js';
+import { wrapOrders } from '../logic/shuffle.js';
 import { sfx } from '../audio/sfx.js';
 
 export function renderWrapup(root) {
   const { c, state } = app;
   resetGloss(); applyCaseTheme(root, c);
+  const orders = wrapOrders(c);
   let active = state.wrap.findIndex(x => x === null); if (active < 0) active = 0;
   const hint = h('p.chip-hint', { 'aria-live': 'polite' }), tray = h('div.chip-tray', { role: 'group', 'aria-label': 'Word chips' }), frame = h('p.frame');
   const finish = h('button.btn.primary.big#btn-finish', { type: 'button', hidden: true, onclick: done }, 'See my stars', h('span', { html: icon('arrow', 24) }));
@@ -31,7 +33,7 @@ export function renderWrapup(root) {
   function paintTray() {
     const b = c.frame.blanks[active];
     if (state.wrap.every(x => x !== null)) { tray.replaceChildren(); return; }
-    tray.replaceChildren(h('span.tray-label', `Blank ${active + 1} of ${c.frame.blanks.length}`), ...b.options.map((o, i) => h('button.wchip', { type: 'button', 'data-chip': o, onclick: e => choose(i, e.currentTarget) }, o)));
+    tray.replaceChildren(h('span.tray-label', `Blank ${active + 1} of ${c.frame.blanks.length}`), ...orders[active].map(i => h('button.wchip', { type: 'button', 'data-chip': b.options[i], onclick: e => choose(i, e.currentTarget) }, b.options[i])));
   }
   function choose(i, el) {
     const r = G.placeChip(state, active, i);
@@ -59,19 +61,18 @@ export function renderWrapup(root) {
 }
 
 const STAR_INFO = [
-  { name: 'Solved', ok: 'You named the right cause.' },
+  { name: 'Solved', ok: 'You named the right cause with at most one wrong try.' },
   { name: 'Evidence', ok: 'Both readings back up your cause.' },
-  { name: 'Sharp detective', ok: 'You ruled out a suspect and kept your tokens.' },
+  { name: 'Sharp detective', ok: 'Strong evidence, a rule-out, no extra tokens and no wrong tries.' },
 ];
 function missingWhy(c, st, i) {
   const s = st.state;
+  if (i === 0) return 'You named the wrong cause more than once. Test first, then name the cause.';
   if (i === 1) return 'Pick two readings from the right place and the right day. ' + (c.evidence.mustIncludeWhy || '');
-  const why = [];
-  if (!s.solved.ruleOut) why.push('Rule out a different suspect with a reading.');
-  else if (!st.stars[2] && s.topUps === 0 && s.wrongCauses <= 1) why.push('Your rule-out reading did not rule that suspect out. Check the guide and the site.');
-  if (s.topUps > 0) why.push('You asked the ranger for more tokens.');
-  if (s.wrongCauses > 1) why.push('You named the wrong cause more than once.');
-  return why.join(' ') || 'Rule out a suspect, keep your tokens and name the right cause quickly.';
+  if (!st.stars[1]) return 'You need the Evidence star first.';
+  if (s.topUps > 0) return 'You asked the ranger for more tokens.';
+  if (s.wrongCauses > 0) return 'You had a wrong try.';
+  return s.solved.ruleOut ? 'Your rule-out reading did not rule that suspect out.' : 'Rule out a different suspect with a reading.';
 }
 
 export function renderResults(root) {
@@ -83,7 +84,8 @@ export function renderResults(root) {
   const next = CASES.find(x => x.num === c.num + 1);
   const nb = h('details.nb-flags', h('summary', 'See your notebook with the guide flags'), notebookView({ c, state: { ...st.state, unseen: 0 }, flags: true }));
   const body = h('main.results',
-    h('h1', count === 3 ? 'Case closed. Full marks!' : 'Case closed!'),
+    h('h1', !stars[0] ? 'Solved after a few guesses' : count === 3 ? 'Case closed. Full marks!' : 'Case closed!'),
+    h('p.tokens-left', `Tokens left: ${st.state.tokens}${st.state.tokens === 1 ? '' : ''}${st.state.topUps ? ` (you asked the ranger for ${st.state.topUps * 3} more)` : ''}. Wrong tries: ${st.state.wrongCauses}.`),
     h('ul.stars', { 'aria-label': `${count} of 3 stars` }, slots),
     h('div.paper.story', h('h2', 'Your story'), h('p', st.sentence)),
     h('div.paper.real', h('h2', 'In the real world'), h('p', c.real.text), h('a.btn.ghost', { href: c.real.url, target: '_blank', rel: 'noopener' }, c.real.linkText, h('span', { html: icon('arrow', 20) }))),

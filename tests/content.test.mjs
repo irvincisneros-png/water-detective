@@ -52,7 +52,7 @@ for (const c of CASES) {
     assert.equal(c.weather.length, c.days);
     assert.ok(c.real.url.startsWith('https://') && c.real.text && c.real.linkText);
   });
-  test(`case ${c.num}: budget and days are sane`, () => { assert.ok(c.budget >= 8 && c.days >= 3); });
+  test(`case ${c.num}: budget and days are sane`, () => { assert.ok(c.budget >= 6 && c.days >= 3); });
 }
 
 test('pH strip chart is 6.0 to 8.5 in 0.5 steps', () => {
@@ -90,4 +90,9 @@ test('case 3 day-1 readings are the course practice set', () => {
   const r = CASES[2].readings, l = CASES[2].labs;
   assert.equal(r.C.do[0], 4.2); assert.equal(r.C.turb, 35); assert.equal(r.C.sal, 4);
   assert.equal(l.bod.C, 2.5); assert.equal(l.bod.A, 1.0);
+});
+
+test('budgets are 6 / 8 / 7 and the guide has a BOD note', () => {
+  assert.deepEqual(CASES.map(c => c.budget), [6, 8, 7]);
+  assert.match(GUIDE.bodNote, /BOD/);
 });

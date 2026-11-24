@@ -44,3 +44,38 @@ export function notebookView({ c, state, selectable = false, selected = new Set(
   }
   return root;
 }
+
+// Compact table: one block per site, one row per measurement, one column per day (Looks sit in a strip above).
+const ORDER = ['temp', 'ph', 'phStrip', 'sal', 'do', 'turb', 'clarity', 'n', 'p', 'bod', 'pest'];
+export function notebookTable({ c, state, flags = false }) {
+  const root = h('div.nb.nb-t');
+  const newIds = new Set(state.entries.slice(Math.max(0, state.entries.length - state.unseen)).map(e => e.id));
+  if (!state.entries.length) root.append(h('p.nb-empty', 'No readings yet. Tap a site on the map, then use Look or a tool.'));
+  for (const s of c.sites) {
+    const list = state.entries.filter(e => e.site === s.id);
+    if (!list.length) continue;
+    const looks = list.filter(e => e.param === 'look').sort((a, b) => a.day - b.day);
+    const nums = list.filter(e => e.param !== 'look');
+    const days = [...new Set(nums.map(e => e.day))].sort((a, b) => a - b);
+    const sec = h('section.nb-group', { 'aria-label': `Site ${s.id}, ${s.name}` }, h('h3', h('span.nb-letter', s.id), s.name));
+    if (looks.length) sec.append(h('ul.nb-looks', looks.map(l => h('li', newIds.has(l.id) ? { class: 'fresh' } : {}, h('span.nb-ico', { html: icon('eye', 20) }), h('span.nb-day', `Day ${l.day}`), h('span', l.value)))));
+    if (nums.length) {
+      const params = ORDER.filter(p => nums.some(e => e.param === p));
+      const thead = h('thead', h('tr', h('th', { scope: 'col' }, 'Measurement'), days.map(d => h('th', { scope: 'col' }, `Day ${d}`))));
+      const rows = params.map(p => {
+        const info = paramInfo(p);
+        return h('tr', h('th', { scope: 'row' }, info.label, info.unit ? h('small', ` ${info.unit}`) : null),
+          days.map(d => {
+            const e = nums.find(x => x.param === p && x.day === d);
+            if (!e) return h('td.none', '–');
+            const fl = flags ? guideFlag(s.water, e) : null;
+            return h('td' + (newIds.has(e.id) ? '.fresh' : '') + (fl ? '.' + fl.flag : ''), { title: fl ? fl.text : null }, typeof e.value === 'number' ? formatValue(p, e.value) : e.value, fl ? h('span.sr-only', ` ${fl.text}`) : null);
+          }));
+      });
+      sec.append(h('div.table-wrap', h('table.nb-table', thead, h('tbody', rows))));
+      for (const b of nums.filter(e => e.param === 'bod')) sec.append(h('p.nb-bod', h('strong', 'BOD: '), `DO now ${b.doNow.toFixed(1)} − DO after 5 days ${b.doAfter.toFixed(1)} = ${b.value.toFixed(1)} mg/L`));
+    }
+    root.append(sec);
+  }
+  return root;
+}

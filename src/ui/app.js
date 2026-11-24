@@ -15,9 +15,9 @@ import { renderInvestigate } from './investigate.js';
 import { renderBoard } from './board.js';
 import { renderWrapup, renderResults } from './wrapup.js';
 import { renderReport } from './report.js';
-import { closeAllDialogs } from './dialog.js';
+import { closeAllDialogs, confirmDialog } from './dialog.js';
 
-const TIMES = { 1: '20 to 25 minutes', 2: '25 minutes', 3: '25 minutes' };
+const TIMES = { 1: '15 minutes', 2: '15 minutes', 3: '15 minutes' };
 
 function logo(size = 74) {
   return `<svg viewBox="0 0 80 80" width="${size}" height="${size}" aria-hidden="true" stroke="#1F4E52" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M34 8C34 8 14 30 14 44a20 20 0 0 0 40 0C54 30 34 8 34 8Z" fill="#6DBBE6"/><path d="M24 46a10 10 0 0 0 8 9" fill="none" stroke="#fff" stroke-width="4" opacity=".85"/><circle cx="50" cy="48" r="17" fill="#FBF7EE" fill-opacity=".92"/><circle cx="50" cy="48" r="11" fill="#CDEBE6" stroke-width="3.2"/><path d="M62 60l13 13" stroke-width="7"/><path d="M44 47c3-3 5 3 8 0" fill="none" stroke="#4A9BD2" stroke-width="3"/></svg>`;
@@ -33,7 +33,7 @@ function focusScreen(root) {
   window.scrollTo(0, 0);
 }
 
-export function go(name, arg) {
+export function go(name, arg, opts = {}) {
   clear();
   const root = app.root;
   root.className = ''; root.removeAttribute('style');
@@ -45,14 +45,14 @@ export function go(name, arg) {
       app.screen = 'call'; renderCall(root); break;
     }
     case 'continue': {
-      const st = save.progressFor(arg); if (!st) return go('call', arg);
+      const st = save.progressFor(arg); if (!st) return go('call', arg, opts);
       app.c = caseById(st.caseId); app.state = st;
-      return go(st.step === 'done' ? 'title' : st.step);
+      return go(st.step === 'done' ? 'title' : st.step, undefined, opts);
     }
-    case 'restart': return go('call', app.c.id);
+    case 'restart': return go('call', app.c.id, opts);
     case 'kit': setStep('kit'); app.screen = 'kit'; renderKit(root); break;
     case 'investigate': setStep('investigate'); app.screen = 'investigate'; app.cleanup = renderInvestigate(root); break;
-    case 'board': if (app.state.step !== 'wrapup') setStep('board'); if (app.state.step === 'wrapup') return go('wrapup'); app.screen = 'board'; app.cleanup = renderBoard(root); break;
+    case 'board': if (app.state.step !== 'wrapup') setStep('board'); if (app.state.step === 'wrapup') return go('wrapup', undefined, opts); app.screen = 'board'; app.cleanup = renderBoard(root); break;
     case 'wrapup': setStep('wrapup'); app.screen = 'wrapup'; renderWrapup(root); break;
     case 'results': app.screen = 'results'; app.c = caseById(app.finished.state.caseId); renderResults(root); break;
     case 'report': app.screen = 'report'; renderReport(root); break;
@@ -60,9 +60,18 @@ export function go(name, arg) {
   }
   if (name !== 'title') document.title = `${app.c?.title ?? 'Water Detective'} · Water Detective`;
   root.dataset.screen = app.screen;
+  if (!opts.noPush) { try { history.pushState({ wd: app.screen }, ''); } catch { /* ignore */ } }
   if (name !== 'investigate') focusScreen(root);
 }
 app.go = go;
+
+// Browser Back goes back one screen inside the game instead of leaving it.
+const BACK = { results: 'title', report: 'title', board: 'investigate', investigate: 'title', kit: 'call', call: 'title', wrapup: null };
+function onPop() {
+  const t = BACK[app.screen];
+  if (t) go(t, undefined, { noPush: true });
+  try { history.pushState({ wd: app.screen }, ''); } catch { /* ignore */ }
+}
 
 // ───────────────────────────────────────────── title
 function renderTitle(root) {
@@ -72,12 +81,12 @@ function renderTitle(root) {
     const stars = h('span.cc-stars', { role: 'img', 'aria-label': `${st.filter(Boolean).length} of 3 stars` }, st.map(b => h('span', { html: icon(b ? 'star' : 'star-empty', 28) })));
     const main = prog ? h('button.btn.primary.cc-go', { type: 'button', 'data-case': c.num, 'data-action': 'continue', onclick: () => { sfx.tap(); go('continue', c.id); } }, 'Continue', h('span', { html: icon('arrow', 22) }))
       : h('button.btn.primary.cc-go', { type: 'button', 'data-case': c.num, 'data-action': 'new', onclick: () => { sfx.tap(); go('call', c.id); } }, done ? 'Play again' : 'New case', h('span', { html: icon('arrow', 22) }));
-    const sub = prog ? h('button.btn.link', { type: 'button', 'data-case': c.num, 'data-action': 'restart', onclick: () => { sfx.tap(); go('call', c.id); } }, 'Start over') : null;
+    const sub = prog ? h('button.btn.link', { type: 'button', 'data-case': c.num, 'data-action': 'restart', onclick: async () => { sfx.tap(); if (await confirmDialog({ title: 'Start this case over?', text: 'Your readings and tokens for this case will be cleared.', yes: 'Start over', danger: true })) go('call', c.id); } }, 'Start over') : null;
     return h('article.case-card', { style: { '--ink': c.accent.ink, '--bg': c.accent.bg, '--pop': c.accent.pop, '--pop2': c.accent.pop2 } },
       h('div.cc-top', h('span.cc-mod', c.module), h('span.cc-badge', prog ? 'In progress' : done ? 'Done' : 'New')),
       h('h2', h('span.cc-num', `Case ${c.num}`), c.title),
       h('p.cc-place', `${c.place} · ${TIMES[c.num]}`),
-      h('p.cc-dots', `${c.moduleName} · ${c.dotPoints.join(', ')}`), stars, h('div.cc-actions', main, sub));
+      h('p.cc-dots', c.moduleName), stars, h('div.cc-actions', main, sub));
   });
   const readTxt = () => 'Water Detective. Test the water. Find the cause. Three cases: ' + CASES.map(c => `Case ${c.num}, ${c.title}`).join('. ');
   const rd = readButton(readTxt);
@@ -104,7 +113,7 @@ function renderCall(root) {
   const body = h('main.call',
     h('p.kicker', `Case ${c.num} · ${c.place}`), h('h1', c.title),
     h('div.call-row', h('span.ranger', { html: ranger(132) }), bubble),
-    h('div.chips', h('span.chip-info', { html: icon('drop', 24) }, `${c.budget} test tokens`), h('span.chip-info', { html: icon('day', 24) }, `${c.days} days`), h('span.chip-info', { html: icon('flask', 24) }, c.tools.includes('bod') ? 'Some labs take 5 days' : 'Lab tests take a day')),
+    h('div.chips', h('span.chip-info', { html: icon('drop', 24) }, `${c.budget} test tokens`), h('span.chip-info', { html: icon('day', 24) }, `${c.days} days`), h('span.chip-info', { html: icon('flask', 24) }, c.tools.includes('bod') ? 'BOD takes 5 days: start it by Day 2' : 'Lab tests take a day')),
     h('div.call-actions', readButton(() => `${c.title}. ${c.call.from} says. ${lines.join(' ')} You have ${c.budget} test tokens and ${c.days} days.`), start));
   root.replaceChildren(h('header.topbar', h('button.btn.tb-btn', { type: 'button', onclick: () => go('title') }, h('span', { html: icon('home', 22) }), h('span.lbl', 'Title')), h('div.tb-spacer'), soundButton()), body);
   glossify(bubble);
@@ -154,5 +163,8 @@ export function boot() {
     game: G, CASES, go, saveMod: save,
     start(num, { kit = true } = {}) { const c = caseById(num); go('call', c.id); if (kit) { go('kit'); go('investigate'); } },
   };
-  go('title');
+  try { history.replaceState({ wd: 'root' }, ''); } catch { /* ignore */ }
+  go('title', undefined, { noPush: true });
+  try { history.pushState({ wd: 'title' }, ''); } catch { /* ignore */ }
+  addEventListener('popstate', onPop);
 }

@@ -38,14 +38,12 @@ test('case 2: day-1 evidence is not enough, and Day 1 readings rule out "always 
   const s = createState(2); s.step = 'investigate'; selectSite(s, 'B');
   runTest(s, 'clarity'); runTest(s, 'do');
   const r = accuse(s, { cause: 'runoff', evidence: [find(s, 'B', 'clarity').id, find(s, 'B', 'do').id], ruleOut: { suspect: 'always-bad', entry: find(s, 'B', 'do').id } });
-  assert.equal(r.stars[1], false); assert.equal(r.stars[2], true);
+  assert.equal(r.stars[1], false); assert.equal(r.stars[2], false);
   assert.match(r.evidence.items[0].why, /before the rain/);
 });
 
 test('budget is enough to take a generous set of readings in each case', () => {
-  for (const c of CASES) assert.ok(c.budget >= 8);
   const s = createState(1); s.step = 'investigate';
-  let spent = 0;
-  for (const site of ['A', 'B', 'C', 'D']) { selectSite(s, site); for (const t of ['temp', 'do']) { if (runTest(s, t).ok) spent++; } }
-  assert.equal(s.tokens, 0);
+  for (const site of ['A', 'B', 'C', 'D']) { selectSite(s, site); for (const t of ['temp', 'do']) runTest(s, t); }
+  assert.equal(s.tokens, 0);   // budget 6: eight cheap tests do not fit, so choices matter
 });

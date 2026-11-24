@@ -3,7 +3,7 @@ export function h(tag, attrs, ...kids) {
   const m = /^([a-z0-9-]+)((?:[.#][\w-]+)*)$/i.exec(tag);
   const el = document.createElement(m ? m[1] : tag);
   if (m && m[2]) for (const part of m[2].match(/[.#][\w-]+/g)) part[0] === '#' ? (el.id = part.slice(1)) : el.classList.add(part.slice(1));
-  if (attrs && (typeof attrs !== 'object' || attrs instanceof Node || Array.isArray(attrs))) { kids.unshift(attrs); attrs = null; }
+  if (attrs != null && (typeof attrs !== 'object' || attrs instanceof Node || Array.isArray(attrs))) { kids.unshift(attrs); attrs = null; }
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v == null || v === false) continue;
     if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);

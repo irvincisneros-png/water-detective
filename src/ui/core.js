@@ -54,5 +54,5 @@ export function dropsMeter(tokens, total, prev) {
 }
 
 export const todayText = () => new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
-export const isoDay = () => new Date().toISOString().slice(0, 10);
+export const isoDay = () => { const d = new Date(), z = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; };
 export { announce };

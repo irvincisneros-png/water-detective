@@ -12,7 +12,7 @@ export function createState(caseId) {
   return {
     v: 1, caseId: c.id, step: 'call', day: 1, tokens: c.budget, site: null,
     entries: [], pending: [], revealed: {}, nextId: 1, unseen: 0,
-    topUps: 0, wrongCauses: 0, tipsShown: 0,
+    topUps: 0, wrongCauses: 0, wrongList: [], tipsShown: 0,
     solved: null,      // { cause, evidence: [ids], ruleOut: {suspect, entry}|null, stars: [bool,bool,bool] }
     wrap: c.frame.blanks.map(() => null),   // chosen option index per blank (null = empty)
     wrapDone: false,
@@ -38,7 +38,7 @@ export function canTest(state, toolId, siteId = state.site) {
   if (!t || !c.tools.includes(toolId)) return { ok: false, reason: 'Not part of this case' };
   if (!siteId) return { ok: false, reason: 'Tap a site on the map first' };
   if (t.cost > state.tokens) return { ok: false, reason: state.tokens === 0 ? 'Out of tokens' : `Needs ${t.cost} tokens` };
-  if (t.delay && state.day + t.delay > maxDay(c)) return { ok: false, reason: 'Lab result would arrive after the last day' };
+  if (t.delay && state.day + t.delay > maxDay(c)) return { ok: false, reason: t.delay >= 5 ? `Too late: a ${t.delay}-day test must start by Day ${maxDay(c) - t.delay}` : 'Lab result would arrive after the last day' };
   if (toolId !== 'look' && duplicate(state, toolId, siteId)) return { ok: false, reason: 'Already done here today' };
   return { ok: true, reason: '' };
 }
@@ -48,6 +48,15 @@ function addEntry(state, e) {
   state.entries.push(entry);
   state.unseen += 1;
   return entry;
+}
+
+// Long lab tests: the last day they can start. status: 'early' (plenty of time), 'last' (today is the last day), 'late'.
+export function labStatus(state, toolId) {
+  const c = caseById(state.caseId), t = TOOLS[toolId];
+  if (!t.delay || t.delay < 5) return null;
+  const deadline = maxDay(c) - t.delay;
+  if (deadline < 1) return null;
+  return { deadline, status: state.day < deadline ? 'early' : state.day === deadline ? 'last' : 'late', delay: t.delay };
 }
 
 export function selectSite(state, siteId) {
@@ -116,6 +125,16 @@ export function nextDay(state) {
   return { ok: true, arrived };
 }
 
+export const nextArrival = state => (state.pending.length ? Math.min(...state.pending.map(p => p.due)) : null);
+// Jump to the day the next waiting result arrives. Returns { ok, days, arrived }.
+export function waitForResults(state) {
+  const due = nextArrival(state);
+  if (due == null) return { ok: false, reason: 'Nothing is waiting', arrived: [], days: 0 };
+  const arrived = []; let days = 0;
+  while (state.day < due) { const r = nextDay(state); if (!r.ok) break; arrived.push(...r.arrived); days++; }
+  return { ok: true, arrived, days };
+}
+
 export function topUp(state) {
   state.tokens += TOPUP; state.topUps += 1;
   return { ok: true, tokens: state.tokens };
@@ -140,10 +159,11 @@ export function accuse(state, payload) {
   const suspect = c.suspects.find(s => s.id === payload.cause);
   if (!suspect) return { ok: false, reason: 'Pick a cause first' };
   if (!suspect.correct) {
+    if (state.wrongList.includes(suspect.id)) return { ok: true, correct: false, repeat: true, lost: 0, why: suspect.wrongWhy, tokens: state.tokens };
     const before = state.tokens;
     state.tokens = Math.max(0, state.tokens - WRONG_COST);
-    state.wrongCauses += 1;
-    return { ok: true, correct: false, lost: before - state.tokens, why: suspect.wrongWhy, tokens: state.tokens };
+    state.wrongCauses += 1; state.wrongList.push(suspect.id);
+    return { ok: true, correct: false, lost: before - state.tokens, why: suspect.wrongWhy, tokens: state.tokens, tries: state.wrongCauses };
   }
   const evEntries = (payload.evidence || []).map(id => entryById(state, id)).filter(Boolean);
   const ev = judgeEvidenceSet(c, evEntries);
@@ -152,8 +172,9 @@ export function accuse(state, payload) {
     roEntry = entryById(state, payload.ruleOut.entry);
     if (roEntry) ro = { suspect: payload.ruleOut.suspect, ...judgeRuleOut(c, payload.ruleOut.suspect, roEntry) };
   }
-  const star1 = true, star2 = ev.star;
-  const star3 = !!ro?.valid && state.topUps === 0 && state.wrongCauses <= 1;
+  // Stars: Solved (at most one wrong try), Evidence, Sharp detective (Evidence + valid rule-out + no top-up + no wrong tries).
+  const star1 = state.wrongCauses <= 1, star2 = ev.star;
+  const star3 = star2 && !!ro?.valid && state.topUps === 0 && state.wrongCauses === 0;
   state.solved = {
     cause: suspect.id, evidence: evEntries.map(e => e.id),
     ruleOut: ro ? { suspect: ro.suspect, entry: roEntry.id } : null,
@@ -161,7 +182,7 @@ export function accuse(state, payload) {
   };
   state.step = 'wrapup';
   state.wrap = c.frame.blanks.map(() => null);
-  return { ok: true, correct: true, evidence: ev, ruleOut: ro, stars: state.solved.stars, topUps: state.topUps, wrongCauses: state.wrongCauses };
+  return { ok: true, correct: true, evidence: ev, ruleOut: ro, stars: state.solved.stars, topUps: state.topUps, wrongCauses: state.wrongCauses, guessed: state.wrongCauses >= 2 };
 }
 
 // Wrap-up chips. Returns { ok, correct, hint }.

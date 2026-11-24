@@ -11,9 +11,9 @@ the **test budget + stars** hook. Paired one-page worksheets ("Case Notes") per 
 
 | # | Title | Module · dot points | Lesson(s) it pairs with | Time |
 |---|---|---|---|---|
-| 1 | Green Water | M1 · 1.1.1, 1.2.3 | 1.1.1 Water Quality Testing, 1.2.3 Eutrophication Jars | 20–25 min |
-| 2 | Which Pond Is Sick? | M5 · 5.1.7, 5.3.2 | 5.1.7 Pond Doctor, 5.3.2 Water Watchers | 25 min |
-| 3 | Fish Kill | M6 · 6.1.6, 6.1.7 | 6.1.6 Muddy Water Test, 6.1.7 Lagoon Water Check | 25 min |
+| 1 | Green Water | M1 · 1.1.1, 1.2.3 | 1.1.1 Water Quality Testing, 1.2.3 Eutrophication Jars | 15 min |
+| 2 | Which Pond Is Sick? | M5 · 5.1.7, 5.3.2 | 5.1.7 Pond Doctor, 5.3.2 Water Watchers | 15 min |
+| 3 | Fish Kill | M6 · 6.1.6, 6.1.7 | 6.1.6 Muddy Water Test, 6.1.7 Lagoon Water Check | 15 min |
 
 - **Made-up places.** Cases 1 and 3 are at **Sandpiper Lagoon**, case 2 at **Banksia Reserve**. Both are fictional "typical NSW
   coastal" places. No invented facts or readings for real places (house rule). Each case ends with one verified real link:
@@ -68,9 +68,13 @@ Students pick the column by the water's salinity (misconception target: "salty w
 Wrong-cause token cost cannot take tokens below 0. The day limit never blocks solving.
 
 ### Stars (per case; best kept)
-- ★ **Solved**: the right cause (any number of tries).
-- ★ **Evidence**: both chosen readings are valid for the right cause (rules per case in `cases.js`).
-- ★ **Sharp detective**: a valid rule-out reading for another suspect AND no ranger top-up AND at most 1 wrong cause.
+- ★ **Solved**: the right cause found with at most ONE wrong try. After two or more wrong tries the case still closes
+  ("Solved after a few guesses") but without star 1. A wrong try costs 2 tokens; the same wrong cause is never charged
+  twice and is locked once tried.
+- ★ **Evidence**: both chosen readings are valid for the right cause (rules per case in `cases.js`). If not earned, the
+  board shows the student's result and a model answer ("Strong evidence would be..."). No retry.
+- ★ **Sharp detective**: ★ Evidence AND a valid rule-out reading for another suspect AND no ranger top-up AND no wrong tries.
+- Budgets: 6 / 8 / 7 tokens (cases 1 / 2 / 3). Lab results show a "Results are in" card; "Wait for results" skips to the next arrival.
 
 ## 3. Screens and layout
 

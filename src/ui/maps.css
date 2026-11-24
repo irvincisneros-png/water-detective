@@ -1,0 +1,29 @@
+/* Water Detective map art animation. All motion is off under prefers-reduced-motion. */
+.wm-site-art, .wm-weather, .wm-life { pointer-events: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .wm-ripple { animation: wm-rip 6s ease-in-out infinite; }
+  .wm-ripple.wm-slow { animation-duration: 9s; }
+  .wm-drift { animation: wm-drift 26s ease-in-out infinite alternate; }
+  .wm-drift.wm-slow { animation-duration: 38s; }
+  .wm-bob { animation: wm-bob 3.6s ease-in-out infinite; }
+  .wm-sway { transform-box: fill-box; transform-origin: 50% 100%; animation: wm-sway 5.5s ease-in-out infinite; }
+  .wm-twinkle { transform-box: fill-box; transform-origin: center; animation: wm-twinkle 3.2s ease-in-out infinite; }
+  .wm-spin { transform-box: fill-box; transform-origin: center; animation: wm-spin 70s linear infinite; }
+  .wm-pulse { animation: wm-pulse 4s ease-in-out infinite; }
+  .wm-rainfall { animation: wm-rain 0.75s linear infinite; }
+  .wm-wind path { stroke-dasharray: 140 420; animation: wm-wind 3.4s linear infinite; }
+  .wm-flow { animation: wm-flow 2.4s linear infinite; }
+
+  @keyframes wm-rip { 0%, 100% { transform: translateX(-7px); opacity: .35; } 50% { transform: translateX(7px); opacity: .8; } }
+  @keyframes wm-drift { from { transform: translateX(-28px); } to { transform: translateX(34px); } }
+  @keyframes wm-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2.5px); } }
+  @keyframes wm-sway { 0%, 100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
+  @keyframes wm-twinkle { 0%, 100% { transform: scale(.55); opacity: .35; } 50% { transform: scale(1); opacity: 1; } }
+  @keyframes wm-spin { to { transform: rotate(360deg); } }
+  @keyframes wm-pulse { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
+  @keyframes wm-rain { from { transform: translateY(0); } to { transform: translateY(70px); } }
+  @keyframes wm-wind { from { stroke-dashoffset: 560; } to { stroke-dashoffset: 0; } }
+  @keyframes wm-flow { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -28; } }
+}
+.wm-flow { stroke-dasharray: 16 12; }

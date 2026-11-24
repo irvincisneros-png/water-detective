@@ -359,7 +359,7 @@ export const CASES = [
       valid: [
         { site: 'C', param: 'bod',  why: 'The creek inflow has the highest BOD of the three sites (2.5 mg/L). Microbes there use up oxygen fastest.' },
         { site: 'B', param: 'bod',  why: 'The middle\'s BOD (1.8 mg/L) is higher than the entrance (1.0). Microbes are using up oxygen there too.' },
-        { site: 'C', param: 'do',   why: 'The creek inflow\'s oxygen ({value}) is the lowest of the three sites. Low oxygen is what kills fish.' },
+        { site: 'C', param: 'do',   why: 'The creek inflow\'s oxygen is only {value}, far lower than the clean entrance. Low oxygen is what kills fish.' },
         { site: 'C', param: 'turb', why: 'The creek inflow is 35 NTU, far over the guide (10). Stormwater carried in mud and rotting waste.' },
         { site: 'C', param: 'sal',  why: 'The creek inflow is only 4 ppt salt: lots of fresh stormwater is flowing in there.' },
       ],
@@ -387,9 +387,9 @@ export const CASES = [
       ],
     },
     real: {
-      text: 'This really happens near Woonona. In January 2020 low oxygen killed fish in Bellambi Lagoon, and the council told people to stay out of the water. NSW rates the lake\'s water quality as poor.',
-      url: 'https://www.environment.nsw.gov.au/topics/water/estuaries/estuaries-of-nsw/bellambi-lake',
-      linkText: 'NSW Government: Bellambi Lake',
+      text: 'This really happens near Woonona. In late December 2019, fish (mostly mullet) died in Bellambi Lagoon when the oxygen ran low, and the council told people to stay out of the water.',
+      url: 'https://www.dpi.nsw.gov.au/fishing/habitat/threats/fish-kills-2019-2020/2019-fish-kills',
+      linkText: 'NSW DPIRD: 2019 fish kills',
     },
   },
 ];

@@ -170,7 +170,8 @@ async function playCase({ num, vp, mode, reduced = false }) {
   assert.match(await page.locator('.report-sheet').innerText(), /real water scientist/);
 
   const errs = t.errors.filter(e => !/favicon/i.test(e));
-  const remote = t.requests.filter(u => !u.startsWith('http://localhost') && !u.startsWith('data:'));
+  const origin = new URL(process.env.URL ?? 'http://localhost:8494/').origin;
+  const remote = t.requests.filter(u => !u.startsWith(origin) && !u.startsWith('http://localhost') && !u.startsWith('data:'));
   await t.close();
   assert.deepEqual(errs, [], 'console errors: ' + errs.join(' | '));
   assert.deepEqual(remote, [], 'no network calls to other hosts');

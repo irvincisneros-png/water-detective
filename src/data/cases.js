@@ -357,9 +357,9 @@ export const CASES = [
     ],
     evidence: {
       valid: [
-        { site: 'C', param: 'bod',  why: 'The creek inflow has the highest BOD of the three sites (2.5 mg/L). Microbes there use up oxygen fastest.' },
-        { site: 'B', param: 'bod',  why: 'The middle\'s BOD (1.8 mg/L) is higher than the entrance (1.0). Microbes are using up oxygen there too.' },
-        { site: 'C', param: 'do',   why: 'The creek inflow\'s oxygen is only {value}, far lower than the clean entrance. Low oxygen is what kills fish.' },
+        { site: 'C', param: 'bod',  why: 'The creek inflow\'s BOD is 2.5 mg/L: microbes there are using up oxygen fast as they rot the waste.' },
+        { site: 'B', param: 'bod',  why: 'The middle\'s BOD is 1.8 mg/L: microbes are using up oxygen there too.' },
+        { site: 'C', param: 'do',   why: 'The creek inflow\'s oxygen is only {value}, close to or under the low-oxygen line (4 mg/L). Fish struggle to breathe in water like this.' },
         { site: 'C', param: 'turb', why: 'The creek inflow is 35 NTU, far over the guide (10). Stormwater carried in mud and rotting waste.' },
         { site: 'C', param: 'sal',  why: 'The creek inflow is only 4 ppt salt: lots of fresh stormwater is flowing in there.' },
       ],

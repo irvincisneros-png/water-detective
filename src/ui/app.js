@@ -51,8 +51,8 @@ export function go(name, arg, opts = {}) {
     }
     case 'restart': return go('call', app.c.id, opts);
     case 'kit': setStep('kit'); app.screen = 'kit'; renderKit(root); break;
-    case 'investigate': setStep('investigate'); app.screen = 'investigate'; app.cleanup = renderInvestigate(root); break;
-    case 'board': if (app.state.step !== 'wrapup') setStep('board'); if (app.state.step === 'wrapup') return go('wrapup', undefined, opts); app.screen = 'board'; app.cleanup = renderBoard(root); break;
+    case 'investigate': if (app.state.solved) return go('wrapup', undefined, opts); setStep('investigate'); app.screen = 'investigate'; app.cleanup = renderInvestigate(root); break;
+    case 'board': if (app.state.solved || app.state.step === 'wrapup') return go('wrapup', undefined, opts); setStep('board'); app.screen = 'board'; app.cleanup = renderBoard(root); break;
     case 'wrapup': setStep('wrapup'); app.screen = 'wrapup'; renderWrapup(root); break;
     case 'results': app.screen = 'results'; app.c = caseById(app.finished.state.caseId); renderResults(root); break;
     case 'report': app.screen = 'report'; renderReport(root); break;
@@ -60,17 +60,19 @@ export function go(name, arg, opts = {}) {
   }
   if (name !== 'title') document.title = `${app.c?.title ?? 'Water Detective'} · Water Detective`;
   root.dataset.screen = app.screen;
-  if (!opts.noPush) { try { history.pushState({ wd: app.screen }, ''); } catch { /* ignore */ } }
+  if (!opts.noPush) { try { history.pushState({ wd: app.screen, n: ++hist.n }, ''); } catch { /* ignore */ } }
   if (name !== 'investigate') focusScreen(root);
 }
 app.go = go;
 
 // Browser Back goes back one screen inside the game instead of leaving it.
 const BACK = { results: 'title', report: 'title', board: 'investigate', investigate: 'title', kit: 'call', call: 'title', wrapup: null };
-function onPop() {
+const hist = { n: 0 };
+function onPop(e) {
+  if (app.screen === 'title') { removeEventListener('popstate', onPop); history.go(-((e.state?.n ?? 0) + 1)); return; }
   const t = BACK[app.screen];
   if (t) go(t, undefined, { noPush: true });
-  try { history.pushState({ wd: app.screen }, ''); } catch { /* ignore */ }
+  try { history.pushState({ wd: app.screen, n: ++hist.n }, ''); } catch { /* ignore */ }
 }
 
 // ───────────────────────────────────────────── title
@@ -91,7 +93,7 @@ function renderTitle(root) {
   const readTxt = () => 'Water Detective. Test the water. Find the cause. Three cases: ' + CASES.map(c => `Case ${c.num}, ${c.title}`).join('. ');
   const rd = readButton(readTxt);
   root.replaceChildren(
-    h('header.topbar.title-bar', h('div.tb-spacer'), soundButton(), h('button.btn.icon-btn', { type: 'button', 'aria-label': 'Menu', onclick: () => { sfx.tap(); openMenu({ inGame: false }); } }, h('span', { html: icon('menu', 24) }))),
+    h('header.topbar.title-bar', h('div.tb-spacer'), h('button.btn.icon-btn', { type: 'button', 'aria-label': 'Menu', onclick: () => { sfx.tap(); openMenu({ inGame: false }); } }, h('span', { html: icon('menu', 24) }))),
     h('main.title',
       h('div.hero', h('span.logo', { html: logo() }), h('h1', { 'data-autofocus': '' }, 'Water Detective'), h('p.tagline', 'Test the water. Find the cause.'), rd),
       h('div.cards', cards),
@@ -163,8 +165,8 @@ export function boot() {
     game: G, CASES, go, saveMod: save,
     start(num, { kit = true } = {}) { const c = caseById(num); go('call', c.id); if (kit) { go('kit'); go('investigate'); } },
   };
-  try { history.replaceState({ wd: 'root' }, ''); } catch { /* ignore */ }
+  try { history.replaceState({ wd: 'root', n: 0 }, ''); } catch { /* ignore */ }
   go('title', undefined, { noPush: true });
-  try { history.pushState({ wd: 'title' }, ''); } catch { /* ignore */ }
+  try { history.pushState({ wd: 'title', n: ++hist.n }, ''); } catch { /* ignore */ }
   addEventListener('popstate', onPop);
 }

@@ -1,7 +1,7 @@
 // Case board: pick the cause, two supporting readings, an optional rule-out, then check.
 import { h, announce } from './dom.js';
 import { icon } from './icons.js';
-import { app, persist, toast, applyCaseTheme, soundButton, dropsMeter, readButton } from './core.js';
+import { app, persist, toast, clearToast, applyCaseTheme, soundButton, dropsMeter, readButton } from './core.js';
 import { notebookView, entryPlain, entryLabel, entryValueText } from './notebook.js';
 import { glossify, resetGloss } from './glossary.js';
 import { openDialog } from './dialog.js';
@@ -112,6 +112,7 @@ export function renderBoard(root) {
   function doCheck() {
     const p = problem();
     if (p) { sfx.wrong(); toast(p, { kind: 'warn' }); return; }
+    clearToast();
     const r = G.accuse(state, { cause: sel.cause, evidence: sel.evidence, ruleOut: sel.roSuspect ? { suspect: sel.roSuspect, entry: sel.roEntry } : null });
     persist();
     if (!r.correct) {
@@ -121,6 +122,7 @@ export function renderBoard(root) {
     }
     sfx.right();
     showRight(r);
+    document.getElementById('btn-back')?.remove();
   }
 
   function starReason(i, r) {

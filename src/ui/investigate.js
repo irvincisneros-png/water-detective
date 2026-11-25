@@ -222,7 +222,7 @@ export function renderInvestigate(root) {
     nextBtn.title = last.ok ? `Go to Day ${state.day + 1}` : 'This is the last day. You can still solve the case.';
     const due = G.nextArrival(state);
     waitBtn.hidden = due == null;
-    waitBtn.replaceChildren(h('span', { html: icon('wait', 22) }), due == null ? 'Wait for results' : `Wait for results (Day ${due})`);
+    waitBtn.replaceChildren(h('span', { html: icon('wait', 22) }), due == null ? 'Wait for results' : `Wait to Day ${due}`);
     waitBtn.title = due == null ? '' : `Skip ahead to Day ${due}, when your next result arrives`;
     const notes = dayNotices();
     banner.hidden = !notes.length; banner.textContent = notes.join(' ');
@@ -267,11 +267,11 @@ export function renderInvestigate(root) {
         h('span.t-cost', { 'aria-label': `costs ${t.cost} ${t.cost === 1 ? 'token' : 'tokens'}` }, ...Array.from({ length: t.cost }, () => h('span', { html: icon('drop', 16) })), t.delay ? h('span.t-lab', `Lab: Day +${t.delay}`) : null),
         showWhy ? h('span.t-why', reason) : note ? h('span.t-note' + (ls.status === 'last' ? '.last' : ''), note) : (site || !ls) ? null : h('span.t-note', `Start by Day ${ls.deadline}: takes ${ls.delay} days`)));
     }
-    kids.push(grid);
     if (state.tokens < 2) {
-      kids.push(h('div.topup', h('p', state.tokens === 0 ? 'You are out of tokens.' : 'You are almost out of tokens.'),
+      kids.push(h('div.topup', h('span.tu-text', state.tokens === 0 ? 'Out of tokens.' : 'Almost out of tokens.'),
         h('button.btn.ghost#btn-topup', { type: 'button', onclick: doTopUp }, 'Ask the ranger for 3 more'), h('small', 'This ends the Sharp detective star.')));
     }
+    kids.push(grid);
     const help = h('details.tool-help', h('summary', 'What do the tools measure?'), h('ul', c.tools.filter(t => t !== 'look').map(t => h('li', TOOL_HELP[t]))));
     kids.push(help);
     toolsPane.replaceChildren(...kids);
@@ -280,7 +280,7 @@ export function renderInvestigate(root) {
 
   setTab('tools');
   refresh();
-  if (!coach) requestAnimationFrame(() => map.pins[c.sites[0].id]?.focus({ preventScroll: true }));
+  requestAnimationFrame(() => map.pins[c.sites[0].id]?.focus({ preventScroll: true }));
   if (coach) setTimeout(() => coach.start(), 400);
   // keep the coach cleaned up when leaving
   return () => { coach?.stop(false); };

@@ -155,6 +155,8 @@ export function scoreStars(state) {
 
 // payload: { cause, evidence: [entryId, entryId], ruleOut: { suspect, entry } | null }
 export function accuse(state, payload) {
+  // Once the cause has been checked correctly the result is final: stars can never change.
+  if (state.solved) return { ok: false, locked: true, reason: 'Already solved' };
   const c = caseById(state.caseId);
   const suspect = c.suspects.find(s => s.id === payload.cause);
   if (!suspect) return { ok: false, reason: 'Pick a cause first' };

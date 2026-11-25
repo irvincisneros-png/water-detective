@@ -64,6 +64,7 @@ export function sanitiseState(raw) {
     s.solved = { cause: v.cause, evidence: v.evidence.slice(0, 2), ruleOut: ro, stars: v.stars };
   }
   if ((s.step === 'wrapup' || s.step === 'done') && !s.solved) return null;
+  if (s.solved && s.step !== 'done') s.step = 'wrapup';
   const nb = c.frame.blanks.length;
   s.wrap = Array.from({ length: nb }, (_, i) => (Array.isArray(raw.wrap) && raw.wrap[i] === c.frame.blanks[i].correct ? raw.wrap[i] : null));
   s.wrapDone = s.step === 'done' && s.wrap.every(x => x !== null);

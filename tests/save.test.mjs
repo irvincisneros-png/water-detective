@@ -63,3 +63,10 @@ test('storage that throws never crashes the game', () => {
   const d = save.load(); assert.deepEqual(d, save.blank());
   save.setSetting('muted', true); assert.equal(save.isMemoryOnly(), true);
 });
+
+test('a solved case restores at the wrap-up, never back on the map', () => {
+  const { state } = solve3(2); state.step = 'investigate';
+  const st = mem(); save.setStorage(st); save.load(); save.saveProgress(state); save.load();
+  const r = save.progressFor(2);
+  assert.equal(r.step, 'wrapup'); assert.deepEqual(r.solved.stars, state.solved.stars);
+});

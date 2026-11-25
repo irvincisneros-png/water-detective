@@ -6,16 +6,15 @@ export function seededOrder(n, seed) {
   for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
   return idx;
 }
-// Order of option indexes to display for each wrap-up blank. Never lets every blank show the correct option first.
+// Order of option indexes to display for each wrap-up blank (seeded, stable). Re-rolled until the correct option's
+// position is not the same for every blank in the case, so it varies across the case.
 export function wrapOrders(c) {
-  const orders = c.frame.blanks.map((b, i) => {
-    for (let k = 0; k < 30; k++) { const o = seededOrder(b.options.length, `${c.id}:${i}:${k}`); if (b.options.length < 2 || o[0] !== b.correct || k === 29) return o; }
-  });
-  return orders;
+  const bl = c.frame.blanks;
+  for (let k = 0; k < 60; k++) {
+    const orders = bl.map((b, i) => seededOrder(b.options.length, `${c.id}:${i}:${k}`));
+    const pos = orders.map((o, i) => o.indexOf(bl[i].correct));
+    if (new Set(pos).size > 1 || k === 59) return orders;
+  }
 }
-// Display order of suspects (the correct one is never first).
-export function suspectOrder(c) {
-  const correct = c.suspects.findIndex(s => s.correct);
-  for (let k = 0; k < 30; k++) { const o = seededOrder(c.suspects.length, `${c.id}:suspects:${k}`); if (o[0] !== correct) return o; }
-  return seededOrder(c.suspects.length, c.id);
-}
+// Display order of suspects (seeded, stable).
+export function suspectOrder(c) { return seededOrder(c.suspects.length, `${c.id}:suspects`); }

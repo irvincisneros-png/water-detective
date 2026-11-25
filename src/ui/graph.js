@@ -35,6 +35,7 @@ export function drawGraph(c, state, site, param) {
   if (!pts.length) return h('p.nb-empty', 'No readings yet for this site and measurement. Test it on more than one day to see a graph.');
   let lo = Math.min(...pts.map(p => p.y), gl ? gl.y : Infinity), hi = Math.max(...pts.map(p => p.y), gl ? gl.y : -Infinity);
   if (FROM_ZERO.has(param)) lo = 0; else { const pad = Math.max((hi - lo) * 0.25, 0.5); lo -= pad; hi += pad; }
+  hi += (hi - lo) * 0.1;
   const ticks = niceTicks(lo, hi, 5); lo = Math.min(lo, ticks[0]); hi = ticks[ticks.length - 1];
   const colW = (W - L - R) / n, X = d => L + (d - 0.5) * colW, Y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
   const svg = document.createElementNS(NS, 'svg');

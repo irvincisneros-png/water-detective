@@ -15,7 +15,8 @@ async function playCase({ num, vp, mode, reduced = false }) {
   const t = await launch({ mobile, prefix: tag, reducedMotion: reduced ? 'reduce' : 'no-preference' });
   const { page } = t;
   const c = CASES[num - 1];
-  const act = async sel => {
+  const act = async sel => { const t0 = Date.now(); try { return await act0(sel); } finally { if (Date.now() - t0 > 5000) console.log('SLOW', sel, Date.now() - t0); } };
+  const act0 = async sel => {
     const loc = page.locator(sel).first();
     await loc.scrollIntoViewIfNeeded();
     if (kb) { await loc.focus(); await page.keyboard.press('Enter'); } else await loc.click();
@@ -120,7 +121,7 @@ async function playCase({ num, vp, mode, reduced = false }) {
   const ids = num === 1 ? [await idOf('C', 'n'), await idOf('C', 'p')] : num === 2 ? [await idOf('B', 'clarity', 2), await idOf('B', 'n', 2)] : [await idOf('C', 'bod'), await idOf('C', 'do')];
   const ruleSus = num === 1 ? 'oil' : num === 2 ? 'always-bad' : 'oil';
   const ruleEntry = num === 1 ? await idOf('B', 'look') : num === 2 ? await idOf('B', 'clarity', 1) : await idOf('C', 'look');
-  const pickCause = id => page.locator(`#sus-${id}`).check({ force: true });
+  const pickCause = id => page.locator(`label[for="sus-${id}"]`).click();
   const withWrong = !kb;   // mouse runs make one wrong try first (loses the Sharp detective star)
   if (withWrong) {
     await pickCause(wrong);
@@ -141,7 +142,14 @@ async function playCase({ num, vp, mode, reduced = false }) {
   await t.shot('board-ready');
   await act('#check'); await page.waitForSelector('.result.good');
   await t.shot('board-right');
-  await act('#btn-continue');
+  assert.equal(await page.locator('#btn-back').count(), 0, 'no Back to the map once solved');
+  const starsBefore = await t.ev(() => JSON.stringify(window.__wd.state.solved.stars));
+  await t.ev(() => window.__wd.go('investigate'));
+  assert.equal(await t.ev(() => window.__wd.screen), 'wrapup', 'a solved case cannot go back to the map');
+  await t.ev(() => window.__wd.go('board'));
+  assert.equal(await t.ev(() => window.__wd.screen), 'wrapup', 'a solved case cannot reopen the board');
+  assert.equal(await t.ev(() => JSON.stringify(window.__wd.state.solved.stars)), starsBefore, 'stars unchanged');
+  await page.waitForSelector('.blank');
   await page.waitForSelector('.blank');
   await t.shot('wrapup');
   c.frame.blanks.forEach(() => {});

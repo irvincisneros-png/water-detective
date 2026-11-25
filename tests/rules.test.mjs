@@ -6,7 +6,7 @@ import { judgeEvidence, judgeRuleOut, ruleMatches, modelEvidence } from '../src/
 import { labStatus, nextArrival, waitForResults } from '../src/logic/game.js';
 import { wrapOrders, suspectOrder, seededOrder } from '../src/logic/shuffle.js';
 import { CASES } from '../src/data/cases.js';
-import { find, advance, must } from './helpers.mjs';
+import { find, advance, must, solve3 } from './helpers.mjs';
 
 const fresh = id => { const s = createState(id); s.step = 'investigate'; return s; };
 
@@ -201,15 +201,38 @@ test('wait for results jumps to the day the next result arrives', () => {
   assert.equal(waitForResults(s).ok, false);
 });
 
-test('seeded shuffles are stable, and the right answer is not first everywhere', () => {
+test('seeded shuffles are stable and the correct position varies across a case', () => {
+  const positions = [];
   for (const c of CASES) {
     const a = wrapOrders(c), b = wrapOrders(c);
     assert.deepEqual(a, b);
     a.forEach((o, i) => assert.deepEqual([...o].sort(), c.frame.blanks[i].options.map((_, k) => k)));
-    assert.ok(a.some((o, i) => o[0] !== c.frame.blanks[i].correct), `${c.id}: not correct-first everywhere`);
-    const so = suspectOrder(c); assert.deepEqual(so, suspectOrder(c)); assert.notEqual(so[0], c.suspects.findIndex(x => x.correct)); assert.deepEqual([...so].sort(), [0, 1, 2, 3]);
+    const pos = a.map((o, i) => o.indexOf(c.frame.blanks[i].correct));
+    assert.ok(new Set(pos).size > 1, `${c.id}: correct position varies (${pos})`);
+    positions.push(...pos);
+    const so = suspectOrder(c); assert.deepEqual(so, suspectOrder(c)); assert.deepEqual([...so].sort(), [0, 1, 2, 3]);
   }
+  assert.ok(positions.includes(0), 'the answer is sometimes first');
+  assert.deepEqual(CASES.map(c => suspectOrder(c).indexOf(c.suspects.findIndex(x => x.correct))).length, 3);
   assert.deepEqual(seededOrder(5, 'x'), seededOrder(5, 'x')); assert.notDeepEqual(seededOrder(8, 'x'), seededOrder(8, 'y'));
+});
+
+test('a solved case is locked: it cannot be re-solved and the stars cannot change', () => {
+  const { state: s, result } = solve3(1);
+  assert.deepEqual(result.stars, [true, true, true]);
+  const before = JSON.stringify(s);
+  const again = accuse(s, { cause: 'soil' });
+  assert.equal(again.locked, true); assert.equal(again.ok, false);
+  const again2 = accuse(s, { cause: 'fertiliser', evidence: [], ruleOut: null });
+  assert.equal(again2.locked, true);
+  assert.equal(JSON.stringify(s), before);
+  // a weak first solve stays weak even after more testing
+  const w = fresh(1); selectSite(w, 'C'); look(w);
+  const r1 = accuse(w, { cause: 'fertiliser', evidence: [find(w, 'C', 'look').id] });
+  assert.deepEqual(r1.stars, [true, false, false]);
+  must(runTest(w, 'nutrients')); advance(w, 1);
+  assert.equal(accuse(w, { cause: 'fertiliser', evidence: [find(w, 'C', 'n').id, find(w, 'C', 'p').id] }).locked, true);
+  assert.deepEqual(w.solved.stars, [true, false, false]);
 });
 
 test('wrap-up chips: wrong wobbles with a hint, right fills; sentence completes', () => {
